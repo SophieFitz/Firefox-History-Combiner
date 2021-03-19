@@ -1,4 +1,5 @@
 # Folders
+__pycache__/
 All firefox backups/
 backup/
 Completed DBs/
