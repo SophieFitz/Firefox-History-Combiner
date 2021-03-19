@@ -1,4 +1,5 @@
 # Folders
+.git/
 __pycache__/
 All firefox backups/
 backup/
