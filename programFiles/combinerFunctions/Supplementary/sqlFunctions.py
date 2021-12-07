@@ -274,6 +274,12 @@ def checkPost62(cur, dbName):
 
 	return tablePresent(cur, dbName, 'moz_origins') # Return either True or False
 
+def checkPost96(cur, dbName): 
+	# Firefox 96 has just entered Beta (07-12-21). I frequently check the source code and they recently added this:
+	# https://searchfox.org/mozilla-central/source/toolkit/components/places/Database.cpp#2320
+	# For some reason, this column is inserted before 'origin_id'. No idea why, but hey.
+	return columnPresent(cur, dbName, 'moz_places', 'site_name')
+
 def checkPre12(cur, dbName):
 	originsExist = tablePresent(cur, dbName, 'moz_origins')
 	hostsExist = tablePresent(cur, dbName, 'moz_hosts')

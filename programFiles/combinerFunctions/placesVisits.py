@@ -1,4 +1,6 @@
-from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkUTF8, getNewID, checkPost62, columnPresent, remove_RemakeIndeces, getDBExtPath
+from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkUTF8, getNewID, checkPost62, checkPost96,\
+																	  columnPresent, remove_RemakeIndeces, getDBExtPath
+
 from programFiles.combinerFunctions.Supplementary.otherFunctions import originsGetPrefixHost
 from programFiles.combinerFunctions.Supplementary.getModifyValues import insUpdFaviconIDs
 from programFiles.combinerFunctions.combineLoops import combineLoops
@@ -46,6 +48,8 @@ def mozPlaces(dbArgs):
 	dbInsPost62 = checkPost62(curMain, 'main')
 	dbExtPost62 = checkPost62(curMain, 'dbExt')
 
+	dbInsPost96 = checkPost96(curMain, 'main')
+
 	insFaviconID = columnPresent(curMain, 'main', 'moz_places', 'favicon_id')
 	extFaviconID = columnPresent(curMain, 'dbExt', 'moz_places', 'favicon_id')
 	
@@ -56,6 +60,7 @@ def mozPlaces(dbArgs):
 	urlHash = 0
 	description = None
 	previewImageURL = None
+	siteName = ''
 	tempOriginID = 0
 
 	newPlaces = checkUTF8(curMain, 'SELECT * from dbExt.moz_places', 'entry[0]: list(entry)', {'description': [None]}, 1000)
@@ -130,8 +135,8 @@ def mozPlaces(dbArgs):
 		combineLoops(curMain, loopDetails)
 
 
-	# Both DBs are above FF 55.0
 	elif dbInsPre55 == False:
+		# Remove 'favicon_id' column if present
 		if insFaviconID == False and extFaviconID == True:
 			for blockNum, blockData in newPlaces.items():
 				checkStopPressed()
@@ -148,6 +153,9 @@ def mozPlaces(dbArgs):
 
 		elif dbInsPost62 == True:
 			defaultValues = [lastVisitDate, guid, foreignCount, urlHash, description, previewImageURL, tempOriginID]
+
+		elif dbInsPost96 == True:
+			defaultValues = [lastVisitDate, guid, foreignCount, urlHash, description, previewImageURL, siteName, tempOriginID]
 
 
 		# Both DBs are above FF 62.0
