@@ -1,3 +1,4 @@
+from pathlib import Path
 import sqlite3
 
 
@@ -18,24 +19,26 @@ def getAllEntries(**args):
     exec(entriesExec)
     return entries
 
+if Path.cwd().joinpath('places.sqlite').is_file() == False:
+    print('There is no places.sqlite DB in this folder. Please copy this file to here and rerun the program.')
 
-dbMain = sqlite3.connect('places.sqlite')
-curMain = dbMain.cursor()
-curMain.execute('attach "favicons.sqlite" as mainIcons')
+elif Path.cwd().joinpath('places.sqlite').is_file() == True:
+    dbMain = sqlite3.connect('places.sqlite')
+    curMain = dbMain.cursor()
 
-allVisits = getAllEntries(cur = curMain, SQL ='SELECT * from main.moz_historyvisits order by id desc', dictSchema ='entry[0]: list(entry)')
+    allVisits = getAllEntries(cur = curMain, SQL ='SELECT * from main.moz_historyvisits order by id desc', dictSchema ='entry[0]: list(entry)')
 
-dupSQL = 'SELECT from_visit, place_id, visit_date, id, COUNT(*) Num FROM moz_historyvisits group by from_visit, place_id, visit_date having Num > 1'
-duplicateVisits = getAllEntries(cur = curMain, SQL = dupSQL, dictSchema ='(entry[0], entry[1], entry[2]): [entry[3], entry[4]]')
-
-
-done = []
-for visit in allVisits.values():
-    if (visit[1], visit[2], visit[3]) in duplicateVisits.keys() and (visit[1], visit[2], visit[3]) not in done:
-        lowestID, numDuplicates = duplicateVisits[(visit[1], visit[2], visit[3])][:]
-        curMain.execute('DELETE from main.moz_historyvisits where from_visit = ? and place_id = ? and visit_date = ? and id > ?', (visit[1], visit[2], visit[3], lowestID))
-        done.append((visit[1], visit[2], visit[3]))
+    dupSQL = 'SELECT from_visit, place_id, visit_date, id, COUNT(*) Num FROM moz_historyvisits group by from_visit, place_id, visit_date having Num > 1'
+    duplicateVisits = getAllEntries(cur = curMain, SQL = dupSQL, dictSchema ='(entry[0], entry[1], entry[2]): [entry[3], entry[4]]')
 
 
-curMain.connection.commit()
-curMain.close()
+    done = []
+    for visit in allVisits.values():
+        if (visit[1], visit[2], visit[3]) in duplicateVisits.keys() and (visit[1], visit[2], visit[3]) not in done:
+            lowestID, numDuplicates = duplicateVisits[(visit[1], visit[2], visit[3])][:]
+            curMain.execute('DELETE from main.moz_historyvisits where from_visit = ? and place_id = ? and visit_date = ? and id > ?', (visit[1], visit[2], visit[3], lowestID))
+            done.append((visit[1], visit[2], visit[3]))
+
+
+    curMain.connection.commit()
+    curMain.close()
