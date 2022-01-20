@@ -70,3 +70,4 @@ class ffOpenWorker(QObject):
 			if 'firefox.exe' not in procsOpen: break
 
 		worker.finished.emit()
+	

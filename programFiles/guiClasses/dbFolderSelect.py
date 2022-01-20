@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QPushButton, QFileDialog, QDialog, QListWidget, QAbstractItemView,\
-							QHBoxLayout, QVBoxLayout, QFrame, QLabel, QRadioButton, QListWidgetItem, QLineEdit
+							QHBoxLayout, QVBoxLayout, QFrame, QLabel, QRadioButton, QListWidgetItem, QLineEdit,\
+							QDesktopWidget
 
 from PyQt5.QtCore import Qt, QSize, QItemSelectionModel
 from PyQt5.QtGui import QFont
@@ -19,7 +20,6 @@ class createDBSelectionDialog(QDialog):
 		dialog.combineBtn = combineBtn
 
 		dialog.setMinimumSize(450, 243)
-		# dialog.setFixedSize(450, 220)
 		dialog.setWindowTitle('Database folder selection')
 		dialog.setWindowFlags(Qt.WindowCloseButtonHint)
 
@@ -85,9 +85,6 @@ class createDBSelectionDialog(QDialog):
 	def keyPressEvent(dialog, keyEvent):
 		if keyEvent.key() == Qt.Key_Escape:
 			dialog.cancelBtn.setFocus()
-			# selectedRows = dialog.selectionBox.selectionModel().selectedRows()
-			# if len(selectedRows) > 0: dialog.selectionBox.clearSelection()
-			# elif len(selectedRows) == 0: dialog.cancelBtn.setFocus()
 
 		# I've set it here that anytime the user presses the CTRL or SHIFT keys, the list box is brought to focus.
 		# Witout this, Ctrl+A won't always select all the items in the list.
@@ -135,7 +132,7 @@ class createDBSelectionDialog(QDialog):
 			message.insert(0, 'This folder is the <b>Primary DB folder</b> location.')
 			message.insert(1, 'This cannot be used for any other purpose.')
 			duplicateFolder = dialog.primaryDBFolder
-			title = 'Must not be Primary DB folder'
+			title = 'Primary DB folder'
 			width = 35
 
 		elif dir_ == str(Path.cwd()):
@@ -246,8 +243,7 @@ class createDBSelectionDialog(QDialog):
 			title = 'Add more folders and new Primary DB folder'
 			message = ['You must add at least <b>one folder</b> containing one or more DBs.',
 					   '',
-					   'In addition, you must choose a new location for the <b><i>Primary DB folder.</b></i>',
-					   'This should be the location of the backup you made of your original DB.']
+					   'In addition, you must choose a new location for the <b><i>Primary DB folder.</b></i>']
 
 			width = 12
 
@@ -313,17 +309,18 @@ class createDBSelectionDialog(QDialog):
 			
 		dialog.selectionBox.clear()
 
-		# Disable hover highlighting on disabled items. Also set colour to black as disabling items turns them grey.
+		# Disable hover highlighting on disabled items. Also set text colour to black as disabling items turns them grey.
 		dialog.selectionBox.setStyleSheet('QListWidget::item:disabled {background: transparent; color: black}')
 
 
-		# Can't use a stylesheet for font adjustments on QListWidetItems. Not for size or weight.
+		# Can't use a stylesheet for font adjustments on QListWidetItems. Not for size or weight anyway.
 		titleFont = QFont()
 		titleFont.setBold(True)
 		titleFont.setPointSize(10)
 
 		fillLoop(['                           Primary DB folder', '', '',  dialog.primaryDBFolder],  1, [0, 1, 2], [0, 25])
 		fillLoop(['                            Other DB folders', '', '', *dialog.dbFolders.keys()], 5, [4, 5, 6], [4, 30])
+
 
 		# Disable titles and separators, not invisible but not enabled!
 		for i in range(7):
@@ -338,5 +335,28 @@ class createDBSelectionDialog(QDialog):
 		dialog.dbFolders = ast.literal_eval(g.combinerConfig.get('History Combiner', 'DB folders'))
 		dialog.primaryDBFolder = g.combinerConfig.get('History Combiner', 'Primary DB folder')
 		dialog.fillSelectionBox()
+
+		# If the option is checked, resize the dialog to width
+		if g.combinerConfig.getint('GUI', 'Auto-size folder dialog width') == 2:
+			# Get a list of all displays (just to be thorough)
+			widthList = []
+			for display in range(QDesktopWidget().screenCount()):
+				widthList.append(QDesktopWidget().screenGeometry(display).width())
+
+			# Find the smallest width
+			maxWidth = min(widthList)
+
+			# sizeHintForColumn() gets the maximum width of all the rows for the given column.
+			# 150 is the constant. The gap between the right-hand edge of the selection box and the window's right-hand edge.
+			newWidth = dialog.selectionBox.sizeHintForColumn(0) + 150
+
+			# Make sure the new width never exceeds the width of the smallest connected display.
+			if newWidth > maxWidth: newWidth = maxWidth
+			
+			dialog.resize(newWidth, 243)
+
+
+		elif g.combinerConfig.getint('GUI', 'Auto-size folder dialog width') == 0:
+			dialog.resize(450, 243)
 
 		super().exec_()

@@ -170,18 +170,20 @@ def removeFiles_Dirs(path, pathType):
 			except: pass
 
 def removeTempFiles():
-	tempDirGen = Path.home().joinpath(r'AppData\Local\Temp').glob('_MEI*')
-	tempDirs = [tempDir for tempDir in tempDirGen]
-	cTimes = [tempDir.stat().st_ctime for tempDir in tempDirs]
+	# Only delete the files if the option is checked.
+	if g.combinerConfig.getint('Misc', 'Delete crashed py-installer files') == 2:
+		tempDirGen = Path.home().joinpath(r'AppData\Local\Temp').glob('_MEI*')
+		tempDirs = [tempDir for tempDir in tempDirGen]
+		cTimes = [tempDir.stat().st_ctime for tempDir in tempDirs]
 
-	for tempDir in tempDirs:
-		if tempDir.stat().st_ctime == max(cTimes): continue # Miss out the current _MEI directory
+		for tempDir in tempDirs:
+			if tempDir.stat().st_ctime == max(cTimes): continue # Miss out the current _MEI directory
 
-		pathNames = [path for path in tempDir.rglob('*')]
-		pathNames.reverse()
+			pathNames = [path for path in tempDir.rglob('*')]
+			pathNames.reverse()
 
-		for path in pathNames:
-			if path.is_file() == True: removeFiles_Dirs(path, 'file')
-			elif path.is_dir() == True: removeFiles_Dirs(path, 'folder')
+			for path in pathNames:
+				if path.is_file() == True: removeFiles_Dirs(path, 'file')
+				elif path.is_dir() == True: removeFiles_Dirs(path, 'folder')
 
-		removeFiles_Dirs(tempDir, 'folder')
+			removeFiles_Dirs(tempDir, 'folder')

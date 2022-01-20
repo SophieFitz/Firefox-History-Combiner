@@ -1,15 +1,14 @@
-from PyQt5.QtWidgets import QWidget, QPushButton, QGridLayout, QLabel, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QPushButton, QGridLayout, QLabel
 from PyQt5.QtCore import Qt, QThread
 
 from configparser import ConfigParser
 from pathlib import Path
 
 from programFiles.guiClasses.warning_info import createWarning_InfoDialog, createFaviconsMissingDialog, createErrorDialog, createBackupDialog
-from programFiles.combinerFunctions.Supplementary.otherFunctions import removeOrphanedSqliteFiles, faviconsFiles, checkDBExists
-from programFiles.combinerFunctions.Supplementary.otherFunctions import removeFiles_Dirs
+from programFiles.combinerFunctions.Supplementary.otherFunctions import faviconsFiles, checkDBExists
 from programFiles.guiClasses.dbFolderSelect import createDBSelectionDialog
-from programFiles.guiClasses.workers import combinerWorker, ffOpenWorker
 from programFiles.guiClasses.settings import createSettingsDialog
+from programFiles.guiClasses.workers import combinerWorker
 from programFiles.guiClasses.misc import confirmChanges
 
 import programFiles.globalVars as g
@@ -81,8 +80,9 @@ class createMainWidget(QWidget):
 		self.combinerThread.start()
 
 	def combiningFinished(self):
-		self.combinerThread.quit()
-		self.combinerThread.wait()
+		if self.combinerThread:
+			self.combinerThread.quit()
+			self.combinerThread.wait()
 
 		g.combinerConfig.read_file(open('Settings.ini'))
 		if g.combinerConfig.getint("GUI", "Stop pressed") == 1:
@@ -113,7 +113,6 @@ class createMainWidget(QWidget):
 
 	def startCombining(self):
 		# Create the QThread and worker, then move the worker to the new QThread.
-		self.combinerThread = QThread(self)
 		self.combineAllDBs = combinerWorker()
 		self.combineAllDBs.moveToThread(self.combinerThread)
 
@@ -125,11 +124,12 @@ class createMainWidget(QWidget):
 		stopConfirmDialog.mainButtonsBox.insertSpacing(2, 20)
 		stopConfirmDialog.accepted.connect(self.stopProc)
 		stopConfirmDialog.height += 15
+		stopConfirmDialog.width += 80
 
 		# Start and stop signals
 		self.combinerThread.started.connect(self.combineAllDBs.runCombinerProc)
 		if g.combinerConfig.getint('Reminder dialogs', 'Stop combining') == 0:
-			self.stopBtn.clicked.connect(stopConfirmDialog.exec_)
+			self.stopBtn.clicked.connect(lambda: stopConfirmDialog.exec_())
 
 		elif g.combinerConfig.getint('Reminder dialogs', 'Stop combining') == 2:
 			self.stopBtn.clicked.connect(self.stopProc)
@@ -153,12 +153,12 @@ class createMainWidget(QWidget):
 				message = ['Auto-backing up of combined DBs has been disabled. Because of this, the most recently combined',
 						   '<i><b>places.sqlite</b></i> DB is located in Firefox History Combiner\'s root directory.',
 						   '',
-						   f'It will be overwritten by the backup located <a href="file:///{g.primaryDBFolder}">here</a> if you continue.',
+						   f'This file will be overwritten by the backup located <a href="file:///{g.primaryDBFolder}">here</a> if you continue.',
 						   'Is this okay?']
 
 				if g.primaryDBFolder.joinpath('favicons.sqlite').is_file() == True:
 					message[1] = message[1].replace('<i><b>places.sqlite</b></i> DB is', '<i><b>places.sqlite</b></i> and <i><b>favicons.sqlite</b></i> DBs are')
-					message[3] = message[3].replace('It will be', 'These will be')
+					message[3] = message[3].replace('This file will be', 'These files will be')
 
 				overwriteDialog = createWarning_InfoDialog('Overwrite DBs?', message, 'OK', 'Warning', 'Overwrite DB')
 				overwriteDialog.accepted.connect(self.combiningStarted)
@@ -173,41 +173,39 @@ class createMainWidget(QWidget):
 
 	def combineWarnings(self):
 		# Another dialog hinting at the max_pages setting in Firefox. Suggest to the user to change it?
-
-		firefoxOpen = False
-		# for proc in psutil.process_iter():
-		#     try:
-		#         if 'firefox.exe' == proc.name().lower(): firefoxOpen = True
-
-		#     except psutil.AccessDenied: # Not all processes are accessible, therefore skip over any that aren't.
-		#         pass
-
-		if firefoxOpen == True:
-			def quitFFCheckThread():
-				ffOpenDialog.okBtn.setEnabled(True)
-				self.ffCheckThread.quit()
-				self.ffCheckThread.wait()
-
-			message = ['The databases cannot be combined while Firefox is still open.',
-					   'You must close Firefox before you can begin combining.',
-					   '',
-					   'Once Firefox is closed, press the <b>OK</b> button to begin combining.']
-
-			ffOpenDialog = createWarning_InfoDialog('Please close Firefox', message, 'OK', 'Warning')
-			ffOpenDialog.setWindowFlags(Qt.WindowTitleHint)
-			ffOpenDialog.okBtn.setEnabled(False)
-			ffOpenDialog.width += 18
 			
-			self.ffCheckThread = QThread(self)
+		self.combinerThread = QThread(self)
 
-			self.ffOpen = ffOpenWorker()
-			self.ffOpen.moveToThread(self.ffCheckThread)
-			self.ffOpen.finished.connect(quitFFCheckThread)
+		# Only show the dialog if the option to hide it is unchecked.
+		if g.combinerConfig.getint('Reminder dialogs', 'Firefox close') == 0:
+			firefoxOpen = False
+			for proc in psutil.process_iter():
+			    try:
+			        if 'firefox.exe' == proc.name().lower(): firefoxOpen = True
 
-			self.ffCheckThread.started.connect(self.ffOpen.check)
-			self.ffCheckThread.start()
+			    except psutil.AccessDenied: # Not all processes are accessible, therefore skip over any that aren't.
+			        pass
 
-			ffOpenDialog.exec_()
+			if firefoxOpen == True:
+				message = ['WARNING: If you choose to proceed with combining and <b>any</b> instance of Firefox is still open,',
+						   'this may interfere with how accurately the history records are processed.',
+						   'See the Readme for further details.', # Link the readme??? A direct-clickable link.
+						   '',
+						   'Press <b>OK</b> to continue anyway.',
+						   'Press <b>Cancel</b> so that you can close all Firefox instances and restart combining.',
+						   '']
+
+				ffOpenDialog = createWarning_InfoDialog('Please close Firefox', message, 'OK', 'Warning')
+				ffOpenDialog.setWindowFlags(Qt.WindowTitleHint)
+				ffOpenDialog.rejected.connect(self.combiningFinished)
+				ffOpenDialog.cancelBtn.show()
+				ffOpenDialog.width += 18
+				
+				ffOpenDialog.exec_()
+
+				# Don't continue combining if the user presses Cancel.
+				if ffOpenDialog.result() == 0: return
+
 
 		primaryDBPath = g.primaryDBFolder.joinpath('places.sqlite')
 		if checkDBExists(primaryDBPath) == False:

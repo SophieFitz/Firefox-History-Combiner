@@ -18,7 +18,7 @@ if Path.cwd().joinpath('Settings.ini').is_file() == True:
 			'Include downloads': '0', # DB versions older than FF 20.0 use 'downloads.sqlite'. I'm not including provision for this unless absolutely necessary.
 			'Update frecency': '0',
 			'Primary DB folder': str(Path.home().joinpath('AppData\\Roaming\\Mozilla\\Firefox\\Profiles')),
-			'DB folders': {}
+			'DB folders': '{}'
 			# 'Recursive': '2' # Search all subfolders
 			# 'Folder positions': {'Menu': {'Before': False, 'After': False, 'Don\'t change': True}, 
 			#                   'Toolbar': {'Before': False, 'After': False, 'Don\'t change': True}}
@@ -29,13 +29,15 @@ if Path.cwd().joinpath('Settings.ini').is_file() == True:
 			'Number DBs': '0',
 			'Overwrite DB': '0',
 			'Stop combining': '0',
-			'Welcome': '0'
+			'Welcome': '0',
+			'Firefox close': '0',
 			},
 
 		'GUI': {
 			'Folders - Last selected directory': '',
 			'Settings - Last selected tab': '0',
-			'Stop pressed': '0'
+			'Stop pressed': '0',
+			'Auto-size folder dialog width': '2'
 			},
 
 		'Backup': {
@@ -48,7 +50,12 @@ if Path.cwd().joinpath('Settings.ini').is_file() == True:
 			'Enabled': '2',
 			'Debug level': '10', # logging.ERROR is 40, logging.INFO is 20 and logging.DEBUG is 10
 			'Log personal info': '2'
+			},
+
+		'Misc': {
+			'Delete crashed py-installer files': '2'
 			}
+
 		}
 
 	for section, options in combinerConfigOptions.items():

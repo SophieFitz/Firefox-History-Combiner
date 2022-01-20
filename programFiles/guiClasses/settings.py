@@ -43,10 +43,10 @@ class createSettingsDialog(QDialog):
 		tabWidget = QTabWidget()
 		tabWidget.setStyleSheet(f'background-color: {bgColour}')
 		tabWidget.addTab(dialog.historyTab(dialog), 'History')
-		# tabWidget.addTab(dialog.bookmarkParticularsTab(dialog), 'Bookmark positioning')
 		tabWidget.addTab(dialog.backupTab(dialog), 'Backups')
-		# tabWidget.addTab(dialog.debugTab(dialog), 'Debugging')
-		tabWidget.insertTab(1, dialog.dialogsTab(dialog), 'Dialogs')
+		tabWidget.insertTab(1, dialog.dialogsTab(dialog), 'Dialogs') # This is inserted as it relies on the previous tabs' data.
+		tabWidget.addTab(dialog.uiTab(dialog), 'UI')
+		tabWidget.addTab(dialog.miscTab(dialog), 'Misc')
 
 		# Remember last selected tab
 		tabWidget.setCurrentIndex(g.combinerConfig.getint('GUI', 'Settings - Last selected tab'))
@@ -117,9 +117,8 @@ class createSettingsDialog(QDialog):
 					if dbInsPost34 == False:
 						message = ['If any of your DBs are older than Firefox 21.0, downloads history cannot be transferred.',
 								   'In prior versions to this, all downloads were stored in a separate database.',
-								   'It is impossible to transfer them from/into a DB older than 21.0.',
-								   '',
-								   'This is just a small heads up that your downloads will be skipped in such circumstances.']
+								   'It is impossible to transfer them from/into a DB older than 21.0.']
+
 						downloadsDialog = createWarning_InfoDialog('Downloads warning', message, 'OK', 'Info', option)
 						downloadsDialog.height += 5
 						downloadsDialog.exec_()
@@ -192,25 +191,27 @@ class createSettingsDialog(QDialog):
 			titleLabel = QLabel('Hide:')
 			titleLabel.setStyleSheet('font-weight: bold; font-size: 12px')
 
-			welcomeCheckbox = createCheckbox('Welcome message', 'Reminder dialogs', 'Welcome')
-			downloadsCheckbox = createCheckbox('Pre FF 21.0 downloads warning', 'Reminder dialogs', 'Downloads')
-			# numberDBsCheckbox = createCheckbox('Number DBs reminder', 'Reminder dialogs', 'Number DBs')
-			stopCombiningCheckbox = createCheckbox('Stop combining warning', 'Reminder dialogs', 'Stop combining')
-			overwriteCheckbox = createCheckbox('Overwrite Primary DB warning', 'Reminder dialogs', 'Overwrite DB')
+			welcome = createCheckbox('Welcome message', 'Reminder dialogs', 'Welcome')
+			downloads = createCheckbox('Pre FF 21.0 downloads warning', 'Reminder dialogs', 'Downloads')
+			# numberDBs = createCheckbox('Number DBs reminder', 'Reminder dialogs', 'Number DBs')
+			stopCombining = createCheckbox('Stop combining warning', 'Reminder dialogs', 'Stop combining')
+			overwritePrimaryDB = createCheckbox('Overwrite Primary DB warning', 'Reminder dialogs', 'Overwrite DB')
+			firefoxClose = createCheckbox('Close all Firefox instances warning', 'Reminder dialogs', 'Firefox close')
 
-			dialog.backupFinishedDBs.stateChanged.connect(lambda: overwriteCheckbox.setEnabled(not dialog.backupFinishedDBs.isChecked()))
-			overwriteCheckbox.setEnabled(not dialog.backupFinishedDBs.isChecked())
+			dialog.backupFinishedDBs.stateChanged.connect(lambda: overwritePrimaryDB.setEnabled(not dialog.backupFinishedDBs.isChecked()))
+			overwritePrimaryDB.setEnabled(not dialog.backupFinishedDBs.isChecked())
 
 			checkmarksBox = QVBoxLayout()
 			leftMarginBox = QHBoxLayout()
 			leftMarginBox.addSpacing(10)
 			leftMarginBox.addLayout(checkmarksBox)
 
-			checkmarksBox.addWidget(welcomeCheckbox)
-			checkmarksBox.addWidget(downloadsCheckbox)
-			# checkmarksBox.addWidget(numberDBsCheckbox)
-			checkmarksBox.addWidget(stopCombiningCheckbox)
-			checkmarksBox.addWidget(overwriteCheckbox)
+			checkmarksBox.addWidget(welcome)
+			checkmarksBox.addWidget(downloads)
+			# checkmarksBox.addWidget(numberDBs)
+			checkmarksBox.addWidget(stopCombining)
+			checkmarksBox.addWidget(overwritePrimaryDB)
+			checkmarksBox.addWidget(firefoxClose)
 			checkmarksBox.addStretch(1)
 
 			mainFrame = QFrame(tab)
@@ -219,6 +220,28 @@ class createSettingsDialog(QDialog):
 			mainBox = QVBoxLayout(mainFrame)
 			mainBox.addWidget(titleLabel)
 			mainBox.addLayout(leftMarginBox)
+
+
+	class uiTab(QWidget):
+		def __init__(tab, dialog):
+			super().__init__()
+
+			autoSizeFolderDialog = createCheckbox('Auto-resize folder dialog to longest folder name', 'GUI', 'Auto-size folder dialog width')
+
+			mainBox = QVBoxLayout(tab)
+			mainBox.addWidget(autoSizeFolderDialog)
+			mainBox.addStretch(1)
+
+
+	class miscTab(QWidget):
+		def __init__(tab, dialog):
+			super().__init__()
+
+			pyInstallerCrashFiles = createCheckbox('Delete leftover temporary files, if the program crashes', 'Misc', 'Delete crashed py-installer files')
+
+			mainBox = QVBoxLayout(tab)
+			mainBox.addWidget(pyInstallerCrashFiles)
+			mainBox.addStretch(1)
 
 
 	class debugTab(QWidget):

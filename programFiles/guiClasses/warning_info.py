@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QApplication, QPushButton, QDialog, QLabel, QStyle, QHBoxLayout, QVBoxLayout,\
-							QListWidget, QListWidgetItem, QTextEdit, QLineEdit, QCheckBox
+							QListWidget, QListWidgetItem, QTextEdit, QLineEdit
 
 from PyQt5.QtCore import Qt, QSize, QTimer
 from PyQt5.QtGui import QFont
@@ -76,7 +76,7 @@ class createWarning_InfoDialog(QDialog):
 			showAgainCheckbox = createCheckbox('Don\'t show this again     ', 'Reminder dialogs', show[0])
 			showAgainCheckbox.setStyleSheet('font-size: 13px')
 
-			 # Only confirm or revert changes if the 'Don't show this again' checkbox is present.
+			# Only confirm or revert changes if the 'Don't show this again' checkbox is present.
 			dialog.rejected.connect(lambda: g.combinerConfig.read_file(open('Settings.ini')))
 			dialog.okBtn.clicked.connect(lambda: confirmChanges(dialog))
 
@@ -389,4 +389,5 @@ class createBackupDialog(createWarning_InfoDialog):
 
 		# Open the Completed DBs folder if the option is checked.
 		# TODO: Check if dialog already open
+		# https://stackoverflow.com/questions/281888/open-explorer-on-a-file#50965628
 		if g.combinerConfig.getint('Backup', 'Open folder') == 2: webbrowser.open(f'file:///{backupDir}')
