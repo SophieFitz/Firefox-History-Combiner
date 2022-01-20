@@ -6,8 +6,8 @@ This means that any Firefox history DB can be ***upgraded*** or ***downgraded***
 The same holds true for Firefox forks such as Waterfox, Palemoon etc. They use the same data format for their history DBs. <br />
 
 **But a word of caution:** <br />
-I have **not** tested combining from/to Firefox forks thoroughly as of yet. Looking at the source code it seems like such DBs <br />
-should behave as if they're Firefox DBs. It is possible this is not the case. <br />
+I have **not** tested combining from/to Firefox forks thoroughly as of yet. Looking at the source code it seems <br />
+like such DBs should behave as if they're Firefox DBs. It is possible this is not the case. <br />
 If there are problems, make an [issue](https://github.com/JoshCode94/Firefox-History-Combiner/issues/new) and let me know.
 
 ### *Please note that this program is incomplete right now.*
