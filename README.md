@@ -14,8 +14,10 @@ If there are problems, make an [issue](https://github.com/JoshCode94/Firefox-His
 The primary functionalities are all working but the workflow is a bit clunky. <br />
 
 Also, while I have tested as thoroughly as I can (combining together DBs from multiple Firefox versions), anomolies are possible. <br />
-You ***MUST*** make a backup of your DB. It is so important. Not meaning to sound patronising, but please do. <br />
-If there are any issues with my program, your DBs will not be affected if you follow this step.
+You ***MUST*** make a backup of your main DB. It is so important. Not meaning to sound patronising, but please do. <br />
+If there are any issues with my program, your main DB will not be affected if you follow this step.
+
+You only need to backup your main DB. Any other DBs you're combining history data ***from*** are unaffected.
 
 
 **Major features still missing are:**
