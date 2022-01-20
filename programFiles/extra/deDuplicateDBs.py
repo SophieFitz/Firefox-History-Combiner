@@ -23,6 +23,8 @@ if Path.cwd().joinpath('places.sqlite').is_file() == False:
     print('There is no places.sqlite DB in this folder. Please copy the file here and rerun this program.')
 
 elif Path.cwd().joinpath('places.sqlite').is_file() == True:
+    print('Analysing database')
+
     dbMain = sqlite3.connect('places.sqlite')
     curMain = dbMain.cursor()
 
@@ -36,7 +38,7 @@ elif Path.cwd().joinpath('places.sqlite').is_file() == True:
     numDuplicates -= len(duplicateVisits)
 
     if numDuplicates > 0:
-        print(f'Removing {numDuplicates} duplicate entries...')
+        print(f'Removing {numDuplicates} duplicate history entries...')
 
         done = []
         allVisits = getAllEntries(cur = curMain, SQL ='SELECT * from main.moz_historyvisits order by id desc', dictSchema ='entry[0]: list(entry)')
