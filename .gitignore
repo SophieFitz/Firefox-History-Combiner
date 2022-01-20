@@ -10,6 +10,7 @@ Docs/
 Pre 55/
 Reference/
 programFiles/opera
+.idea/
 
 # Files
 Firefox history combiner.exe
@@ -28,3 +29,4 @@ test.py
 opera.py
 Combiner.log
 makeCombinerExe.bat
+3

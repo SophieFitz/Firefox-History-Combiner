@@ -232,7 +232,7 @@ def generalExceptionLog(errorMessage):
 	elif len(allDBsPost55) > 0:
 		dbExtPath = allDBsPost55[0]
 
-		sql = 'attach "{dbExtPath}" as dbExt'
+		sql = f'attach "{dbExtPath}" as dbExt'
 		dbNames['dbExt'] = allDBsPost55[0]
 		cur.execute(sql)
 

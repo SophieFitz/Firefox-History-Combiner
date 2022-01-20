@@ -12,7 +12,7 @@ from programFiles.combinerFunctions.favicons import mozFavicons
 from programFiles.combinerFunctions.annos import annotations
 
 from programFiles.combinerFunctions.Supplementary.updateEntries import updateFrecency, updateVisit_foreignCounts, updatePlaceURLHashes, updateIcons_toPages
-from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkPre55, columnPresent, removeFaviconIDCol, allOldEntriesGet
+from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkPre55, columnPresent, removeReorderColumns, allOldEntriesGet
 from programFiles.combinerFunctions.Supplementary.createBlankDBs import createBlankFaviconsDB
 from programFiles.combinerFunctions.Supplementary.otherFunctions import faviconsFiles
 
@@ -53,6 +53,7 @@ def combiner():
 			combinerLogger.info(f'\n{dbExtPath}\n{dbExtIcons}')
 			curMain.execute('detach extIcons')
 
+		curMain.connection.commit()
 		curMain.execute('detach dbExt')
 
 	startTime = time.time()
@@ -97,7 +98,7 @@ def combiner():
 
 		# Remove favicon_id column from DB insert, if present.
 		faviconIDPresent = columnPresent(curMain, 'main', 'moz_places', 'favicon_id')
-		if faviconIDPresent == True: removeFaviconIDCol(curMain)
+		if faviconIDPresent == True: removeReorderColumns(curMain, 'main', 'moz_places', {'remove': ['favicon_id']})
 
 	elif dbInsPre55 == True:
 		if insBookmarksGUID == False: print('\nThe main DB must be newer than Firefox 4.0 to transfer bookmarks.\n')

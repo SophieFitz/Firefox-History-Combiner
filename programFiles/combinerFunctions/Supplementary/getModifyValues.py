@@ -2,13 +2,12 @@
 # If a copy of the MPL was not distributed with this file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
 # Support for upgrading old history DBs (ones from before FF 55.0) has been removed as of FF 85.0.
-# ESR 78.0 is the last online-searchable repository that contains the since-removed favicons conversion code.
+# ESR 78.0 is the last searchable-online repository that contains the since-removed favicons conversion code.
 # I have re-implemented this code in my function 'contertToPNG()', basing it on 'FetchAndConvertUnsupportedPayloads::ConvertPayload'.
 # See: https://searchfox.org/mozilla-esr78/source/toolkit/components/places/FaviconHelpers.cpp#1221
 
 
 from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkPre55
-# from programFiles.combinerFunctions.Supplementary.exceptions import insertException
 from programFiles.guiClasses.misc import checkStopPressed
 from PIL import Image, ImageFile
 from io import BytesIO
@@ -75,12 +74,12 @@ def convertToPNG(icon):
 
 
 def removePrefix(url):
-	fixedUrl = ''
+	editedUrl = ''
 	for prefix in ('https://', 'http://', 'ftp://'):
-		if url.startswith(prefix): fixedUrl = url[len(prefix):]
+		if url.startswith(prefix): editedUrl = url[len(prefix):]
 
-	if fixedUrl.startswith('www.'): fixedUrl = fixedUrl[4:]
-	return fixedUrl
+	if editedUrl.startswith('www.'): editedUrl = editedUrl[4:]
+	return editedUrl
 
 
 def getRoot(url):

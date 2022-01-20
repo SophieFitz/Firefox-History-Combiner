@@ -103,15 +103,12 @@ def checkUTF8(cur, origSQL, dictSchema, colsToCheck, *blockSize):
 
 		index, defValue = info
 
-		# 
 		SQL = origSQL.replace('*', insertCol(tableSchema, col)) # Again, won't necessarily be a *....
-		# colEntries = getAllEntries(cur = tempCur, SQL = f'{SQL} where id < 50', dictSchema = dictSchema)
 
 		# Has all columns but minus non-utf8 entries.
 		colEntries = getAllEntries(cur = tempCur, SQL = SQL, dictSchema = dictSchema)
 
-		# skippedEntries = {key: '' for key in colEntries.keys() if key not in mainEntries.keys()}
-		skippedEntries = {key: '' for key in mainEntries.keys() if key not in colEntries.keys()}
+		skippedEntries = {key: value for key, value in mainEntries.items() if key not in colEntries.keys()}
 
 		# The missing column(s) are copied into the mainEntries dict!
 		for entry in colEntries.values():
@@ -189,6 +186,72 @@ def removeFaviconIDCol(cur):
 	cur.execute('pragma foreign_keys=on')
 	cur.connection.commit()
 
+def removeReorderColumns(cur, dbName, tableName, columns):
+	# Remove and/or change the order of the given table's column(s).
+
+	cur.execute('pragma foreign_keys=off')
+	cur.connection.commit()
+	cur.execute('begin')
+
+	sql = f'SELECT sql from {dbName}.sqlite_master where type = ? and name = ?'
+	createTableSQL = cur.execute(sql, ('table', f'{tableName}')).fetchone()[0]
+	createTableSQL = createTableSQL.replace(tableName, 'tablePlaceholder')
+	
+	sql = f'pragma {dbName}.table_info({tableName})'
+	colsGet = cur.execute(sql).fetchall()
+	cols = None
+
+
+	colsToRemove = columns.get('remove')
+	colsToReorder = columns.get('reorder')
+
+	if colsToRemove is not None:
+		for col in colsToRemove:
+			createTableSQL = createTableSQL.replace(col, '')
+
+		cols = [col[1] for col in colsGet if col[1] not in colsToRemove]
+
+	if colsToReorder is not None:
+		# If I'm doing multiple columns at once, need to factor-in the altered numbers of the columns.
+		if cols is None: cols = [col[1] for col in colsGet]
+		createTableCols = createTableSQL.split('(', 1)[1].split(',')
+		createTableCols[-1] = createTableCols[-1][:-1] # Get rid of trailing parentheses bracket.
+
+		for colName_Type, colTo in colsToReorder.items():
+			colName = colName_Type.split(' ')[0]
+			if colName not in cols: continue
+
+			colFrom = cols.index(colName)
+			if colTo == colFrom: continue # If the column is already correctly positioned, continue
+
+			del createTableCols[colFrom]
+			del cols[colFrom]
+
+			createTableCols.insert(colTo, colName_Type)
+			cols.insert(colTo, colName)
+
+		createTableSQL = f'CREATE TABLE {dbName}.tablePlaceholder ('
+		for colSQL in createTableCols: createTableSQL += f'{colSQL.strip()}, '
+		createTableSQL = createTableSQL[:-2] + ')' # Add parentheses back in.
+
+		
+	colsStr = ''
+	for col in cols: colsStr += f'{col}, '
+	colsStr = colsStr[:-2] # Get rid of trailing comma and space.
+
+	newTableSQL = f'INSERT into {dbName}.tablePlaceholder({colsStr}) SELECT {colsStr} from {dbName}.{tableName}'
+	cur.execute(createTableSQL)
+	cur.execute(newTableSQL)
+
+	sql = f'drop table {dbName}.{tableName}'
+	sql2 = f'alter table {dbName}.tablePlaceholder rename to {tableName}'
+	cur.execute(sql)
+	cur.execute(sql2)
+
+
+	cur.execute('pragma foreign_keys=on')
+	cur.connection.commit()
+
 def allOldEntriesGet(curMain):
 	print('\nGetting all old entries in preparation for combining')
 
@@ -234,6 +297,13 @@ def allOldEntriesGet(curMain):
 		
 		g.oldEntries.update({table: entries})
 
+def checkPre12(cur, dbName):
+	originsExist = tablePresent(cur, dbName, 'moz_origins')
+	hostsExist = tablePresent(cur, dbName, 'moz_hosts')
+
+	if hostsExist == False and originsExist == False:  return True # When neither moz_hosts or moz_origins exist, DB is pre FF 12.0
+	elif hostsExist == True and originsExist == False: return False # If moz_hosts exists but moz_origins doesn't, DB is between FF 12.0 and FF 62.0
+
 def checkDBPost34():
 	primaryDBPath = g.primaryDBFolder.joinpath('places.sqlite')
 	# If the user has selected the primary DB folder without first putting a DB inside of it, 
@@ -277,15 +347,7 @@ def checkPost62(cur, dbName):
 def checkPost96(cur, dbName): 
 	# Firefox 96 has just entered Beta (07-12-21). I frequently check the source code and they recently added this:
 	# https://searchfox.org/mozilla-central/source/toolkit/components/places/Database.cpp#2320
-	# For some reason, this column is inserted before 'origin_id'. No idea why, but hey.
 	return columnPresent(cur, dbName, 'moz_places', 'site_name')
-
-def checkPre12(cur, dbName):
-	originsExist = tablePresent(cur, dbName, 'moz_origins')
-	hostsExist = tablePresent(cur, dbName, 'moz_hosts')
-
-	if hostsExist == False and originsExist == False:  return True # When neither moz_hosts or moz_origins exist, DB is pre FF 12.0
-	elif hostsExist == True and originsExist == False: return False # If moz_hosts exists but moz_origins doesn't, DB is between FF 12.0 and FF 62.0
 
 def remove_RemakeIndeces(cur, mainDBName, table, action):
 	# For a significant performance increase, remove all non-unique indeces from the required table.

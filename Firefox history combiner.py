@@ -14,7 +14,7 @@ import logging, ast
 class createMainWindow(QMainWindow):
 	def __init__(self):
 		super().__init__()
-		# Support for different size screens??? Resize widgets and text to accomodate??
+		# Support for different size screens??? Resize widgets and text to accommodate??
 
 		self.setFixedSize(450, 250)
 		self.setWindowTitle('Firefox History Combiner')
@@ -81,7 +81,7 @@ message = ['Welcome to Firefox History Combiner!',
 		   'In addition, the <b><i>Primary DB location</b></i> must contain the backup of your original DB (mentioned above).',
 		   '',
 		   'Various aspects of your history data can be selected for combining, including Frecency! Open <b><i>Settings</b></i> for this.',
-		   'There are also options for hiding dialog reminders, creating backups and for debugging.',
+		   'There are also options for hiding dialog reminders, creating backups, and other miscellaneous things.',
 		   '',
 		   f'<a href="{frecencyLink}">Click here</a> for a more in-depth explanation of what Frecency is and how it works.',
 		   '']

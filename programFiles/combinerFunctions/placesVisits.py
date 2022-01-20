@@ -1,5 +1,5 @@
-from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkUTF8, getNewID, checkPost62, checkPost96,\
-																	  columnPresent, remove_RemakeIndeces, getDBExtPath
+from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkUTF8, checkPost62, checkPost96, columnPresent,\
+																	  remove_RemakeIndeces, getDBExtPath, removeReorderColumns
 
 from programFiles.combinerFunctions.Supplementary.otherFunctions import originsGetPrefixHost
 from programFiles.combinerFunctions.Supplementary.getModifyValues import insUpdFaviconIDs
@@ -49,6 +49,7 @@ def mozPlaces(dbArgs):
 	dbExtPost62 = checkPost62(curMain, 'dbExt')
 
 	dbInsPost96 = checkPost96(curMain, 'main')
+	dbExtPost96 = checkPost96(curMain, 'dbExt')
 
 	insFaviconID = columnPresent(curMain, 'main', 'moz_places', 'favicon_id')
 	extFaviconID = columnPresent(curMain, 'dbExt', 'moz_places', 'favicon_id')
@@ -60,11 +61,27 @@ def mozPlaces(dbArgs):
 	urlHash = 0
 	description = None
 	previewImageURL = None
-	siteName = ''
 	tempOriginID = 0
+	siteName = None
+
+	# Put 'site_name' at the end.
+	# For some reason, as of Firefox 96, when a new places.sqlite DB is created, 'site_name' is put before 'origin_id'.
+	# No idea why. But it screws things up as this combiner works on the assumption that each new column is appended, not inserted!
+	# Only for new DBs. Old ones that are upgraded to the newest schema have the column appended like normal.
+	if dbInsPost96 == True:
+		colTo = 15
+		columns = {'reorder': {'site_name TEXT': colTo}}
+		removeReorderColumns(curMain, 'main', 'moz_places', columns)
+
+	if dbExtPost96 == True:
+		if extFaviconID == True: colTo = 16
+		elif extFaviconID == False: colTo = 15
+
+		columns = {'reorder': {'site_name TEXT': colTo}}
+		removeReorderColumns(curMain, 'dbExt', 'moz_places', columns)
+
 
 	newPlaces = checkUTF8(curMain, 'SELECT * from dbExt.moz_places', 'entry[0]: list(entry)', {'description': [None]}, 1000)
-	# newPlaces = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_places', dictSchema = 'entry[0]: list(entry)', blockSize = 1000)
 
 	if dbInsPre55 == True:
 		if dbExtPre55 == True:
@@ -136,7 +153,7 @@ def mozPlaces(dbArgs):
 
 
 	elif dbInsPre55 == False:
-		# Remove 'favicon_id' column if present
+		# Remove 'favicon_id' column from dbExt if present
 		if insFaviconID == False and extFaviconID == True:
 			for blockNum, blockData in newPlaces.items():
 				checkStopPressed()
@@ -155,26 +172,31 @@ def mozPlaces(dbArgs):
 			defaultValues = [lastVisitDate, guid, foreignCount, urlHash, description, previewImageURL, tempOriginID]
 
 		elif dbInsPost96 == True:
-			defaultValues = [lastVisitDate, guid, foreignCount, urlHash, description, previewImageURL, siteName, tempOriginID]
+			defaultValues = [lastVisitDate, guid, foreignCount, urlHash, description, previewImageURL, tempOriginID, siteName]
+
 
 
 		# Both DBs are above FF 62.0
 		if dbInsPost62 == True and dbExtPost62 == True:
 			# This single iteration for-loop calculates the originCol position
 			for place in newPlaces[1].values():
-				originCol = len(place) - 1
+				if type(place[-1]) is int:
+					originCol = len(place) -1
+
+				elif type(place[-1]) is not int:
+					originCol = len(place) -2
+
 				break
 
-			oldOriginIDs_PrefixHost = getAllEntries(cur = curMain, SQL = 'SELECT id, prefix, host from dbExt.moz_origins', 
-													dictSchema = 'entry[0]: (entry[1], entry[2])')
 
+			oldOriginIDs_PrefixHosts = getAllEntries(cur = curMain, SQL = 'SELECT id, prefix, host from dbExt.moz_origins', dictSchema = 'entry[0]: (entry[1], entry[2])')
 			newOriginPrefixHosts_IDs = g.oldEntries.get('moz_origins')
 
 			for blockNum, blockData in newPlaces.items():
 				checkStopPressed()
 
 				for place in blockData.values():
-					oldPrefixHost = oldOriginIDs_PrefixHost.get(place[originCol])
+					oldPrefixHost = oldOriginIDs_PrefixHosts.get(place[originCol])
 					if oldPrefixHost is None:
 						frameInfo = getframeinfo(currentframe())
 						errorMessage = (f'DB insert (moz_places):-\n'
@@ -283,7 +305,7 @@ def mozHistoryVisits(curMain):
 			historyVisit[2] = historyVisit[2][1] # Get id, ignore last_visit_date
 			
 			# If the entry is an exact duplicate of one already present, then it's skipped!
-			if (fkGUID in oldPlaceGUIDs_IDs.keys() and historyVisit[3] in oldHistoryDates.keys()): continue
+			if fkGUID in oldPlaceGUIDs_IDs.keys() and historyVisit[3] in oldHistoryDates.keys(): continue
 			if includeDownloads == 0 and historyVisit[4] == 7: continue # Downloads are ignored if the option is checked.
 
 
