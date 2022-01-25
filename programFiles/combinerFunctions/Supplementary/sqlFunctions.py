@@ -162,31 +162,24 @@ def getDBExtPath(cur, dbExtName):
 
 	return dbExtPath
 
-def removeFaviconIDCol(cur):
-	cur.execute('pragma foreign_keys=off')
-	cur.execute('begin')
-
-	placesCreate = cur.execute('SELECT sql from sqlite_master where type = ? and name = ?', ('table', 'moz_places')).fetchone()[0]
-	placesCreate = placesCreate.replace('moz_places', 'placesPlaceholder')
-	placesCreate = placesCreate.replace(', favicon_id INTEGER', '')
-
-	placesColsGet = cur.execute('pragma table_info(moz_places)').fetchall()
-	placesCols = [col[1] for col in placesColsGet if col[1] != 'favicon_id']
+def reorderColumnSql(cur, dbName, tableName, sql, colNames):
+	colsSql = f'pragma {dbName}.table_info({tableName})'
+	colsGet = cur.execute(colsSql).fetchall()
+	cols = [col[1] for col in colsGet]
 	colsStr = ''
 
-	for col in placesCols: colsStr += f'{col}, '
-	colsStr = colsStr[:-2] # Get rid of trailing comma and space.
+	for colName, colTo in colNames.items():
+		colFrom = cols.index(colName)
+		del cols[colFrom]
+		cols.insert(colTo, colName)
 
-	newTableSQL = f'INSERT into placesPlaceholder({colsStr}) SELECT {colsStr} from moz_places'
-	cur.execute(placesCreate)
-	cur.execute(newTableSQL)
-	cur.execute('drop table moz_places')
-	cur.execute('alter table placesPlaceholder rename to moz_places')
+	for col in cols: colsStr += f'{col}, '
+	colsStr = colsStr[:-2]
 
-	cur.execute('pragma foreign_keys=on')
-	cur.connection.commit()
+	# Change if the query is more specific than 'SELECT *'
+	return sql.replace('*', colsStr)
 
-def removeReorderColumns(cur, dbName, tableName, columns):
+def removeReorderTableColumns(cur, dbName, tableName, columns):
 	# Remove and/or change the order of the given table's column(s).
 
 	cur.execute('pragma foreign_keys=off')

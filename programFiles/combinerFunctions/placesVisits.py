@@ -1,5 +1,5 @@
 from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkUTF8, checkPost62, checkPost96, columnPresent,\
-																	  remove_RemakeIndeces, getDBExtPath, removeReorderColumns
+																	  remove_RemakeIndeces, getDBExtPath, removeReorderTableColumns, reorderColumnSql
 
 from programFiles.combinerFunctions.Supplementary.otherFunctions import originsGetPrefixHost
 from programFiles.combinerFunctions.Supplementary.getModifyValues import insUpdFaviconIDs
@@ -18,7 +18,7 @@ def mozPlaces(dbArgs):
 	placesInsLen = len(curMain.execute('pragma main.table_info(moz_places)').fetchall())
 	placesExtLen = len(curMain.execute('pragma dbExt.table_info(moz_places)').fetchall())
 
-	newUrls_VisitDates = getAllEntries(cur = curMain, SQL = 'SELECT url, last_visit_date from dbExt.moz_places', 
+	newUrls_VisitDates = getAllEntries(cur = curMain, SQL = 'SELECT url, last_visit_date from dbExt.moz_places',
 									   dictSchema = 'entry[0]: entry[1]', blockSize = 1000)
 
 	remove_RemakeIndeces(curMain, 'main', 'moz_places', 'Remove')
@@ -53,7 +53,7 @@ def mozPlaces(dbArgs):
 
 	insFaviconID = columnPresent(curMain, 'main', 'moz_places', 'favicon_id')
 	extFaviconID = columnPresent(curMain, 'dbExt', 'moz_places', 'favicon_id')
-	
+
 	# Default value for each column
 	lastVisitDate = None
 	guid = None
@@ -66,22 +66,25 @@ def mozPlaces(dbArgs):
 
 	# Put 'site_name' at the end.
 	# For some reason, as of Firefox 96, when a new places.sqlite DB is created, 'site_name' is put before 'origin_id'.
-	# No idea why. But it screws things up as this combiner works on the assumption that each new column is appended, not inserted!
 	# Only for new DBs. Old ones that are upgraded to the newest schema have the column appended like normal.
+	# No idea why. But it screws things up as this combiner works on the assumption that each new column is appended, not inserted!
 	if dbInsPost96 == True:
 		colTo = 15
 		columns = {'reorder': {'site_name TEXT': colTo}}
-		removeReorderColumns(curMain, 'main', 'moz_places', columns)
+		removeReorderTableColumns(curMain, 'main', 'moz_places', columns)
 
+
+	newPlacesSql = 'SELECT * from dbExt.moz_places'
+	# For all other DBs, only re-order the sql for the dictionary's columns, not the actual DB directly.
+	# It messes with the file's date/time properties otherwise.
 	if dbExtPost96 == True:
 		if extFaviconID == True: colTo = 16
 		elif extFaviconID == False: colTo = 15
 
-		columns = {'reorder': {'site_name TEXT': colTo}}
-		removeReorderColumns(curMain, 'dbExt', 'moz_places', columns)
+		newPlacesSql = reorderColumnSql(curMain, 'dbExt', 'moz_places', newPlacesSql, {'site_name': colTo})
 
 
-	newPlaces = checkUTF8(curMain, 'SELECT * from dbExt.moz_places', 'entry[0]: list(entry)', {'description': [None]}, 1000)
+	newPlaces = checkUTF8(curMain, newPlacesSql, 'entry[0]: list(entry)', {'description': [None]}, 1000)
 
 	if dbInsPre55 == True:
 		if dbExtPre55 == True:
@@ -158,7 +161,7 @@ def mozPlaces(dbArgs):
 			for blockNum, blockData in newPlaces.items():
 				checkStopPressed()
 
-				for place in blockData.values(): 
+				for place in blockData.values():
 					del place[7]
 					newPlaces[blockNum].update({place[0]: place})
 
@@ -258,7 +261,7 @@ def mozPlaces(dbArgs):
 						raise g.dictException(items)
 
 					curMain.execute('UPDATE main.moz_places set origin_id = ? where id = ?', (originID, place[0]))
-			
+
 			curMain.connection.commit()
 
 	mozHistoryVisits(curMain)
