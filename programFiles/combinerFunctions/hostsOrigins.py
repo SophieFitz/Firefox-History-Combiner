@@ -1,5 +1,5 @@
 from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, getNewID, checkPre12, checkPost62
-from programFiles.combinerFunctions.Supplementary.otherFunctions import originsGetPrefixHost
+from programFiles.combinerFunctions.Supplementary.getModifyValues import originsGetPrefixHost
 from programFiles.combinerFunctions.combineLoops import combineLoops
 
 import programFiles.globalVars as g
@@ -96,7 +96,7 @@ def mozHosts_Origins(curMain):
 
 		placesForOriginsGet = curMain.execute('SELECT id, url, frecency from dbExt.moz_places').fetchall()
 		placesForOrigins = {originsGetPrefixHost(place[1]): [place[0], *originsGetPrefixHost(place[1]), place[2]] for place in placesForOriginsGet}
-		placesForOrigins = getAllEntries(entries = placesForOrigins, blockSize = 1000)
+		placesForOrigins = getAllEntries(entries = placesForOrigins, blockSize = 1000) # Convert to blocks
 
 		loopDetails = {'tableName': 'main.moz_origins', 'dbExtName': 'dbExt', 'defaultValues': [],
 					   'oldEntries': {'tables': ['moz_origins']},

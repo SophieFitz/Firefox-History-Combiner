@@ -31,7 +31,6 @@ def combineLoops(curMain, allDetails):
 																		 dictSchema = newEntries.get('schema'), 
 																		 blockSize = newEntries.get('blockSize'))
 
-
 	# Set dupExec to empty string if it's None
 	if dupExec is None: dupExec = ''
 
@@ -114,9 +113,10 @@ def combineLoops(curMain, allDetails):
 	insLen = len(curMain.execute(sql).fetchall())
 	extLen = insLen # Default difference will be 0, therefore no values are changed.
 
-	if len(newEntries) > 0:
-		# newEntries[1] for block 1. Arbitrary, but meh. All entries in each block have the same length. So any block index will do.
-		for value in newEntries[1].values(): extLen = len(value); break
+	# If there are any new entries
+	# Prior to this, 'newEntries' was polled for its length. However, this is not fullproof.
+	if len(blocksToNormal(newEntries)) > 0:
+		for value in blocksToNormal(newEntries).values(): extLen = len(value); break
 
 
 	# Compare lengths and extend/shorten
@@ -139,7 +139,6 @@ def combineLoops(curMain, allDetails):
 			for key, entry in blockData.items():
 				entry = entry[:lenDiff]
 				newEntriesEdited[blockNum].update({key: entry})
-			
 
 	# Final loop: insert!
 	remove_RemakeIndeces(curMain, mainDBName, table, 'Remove')

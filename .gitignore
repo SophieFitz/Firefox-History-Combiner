@@ -9,7 +9,6 @@ dist/
 Docs/
 Pre 55/
 Reference/
-programFiles/opera
 .idea/
 
 # Files
@@ -20,13 +19,11 @@ places.sqlite-shm
 favicons.sqlite
 favicons.sqlite-wal
 favicons.sqlite-shm
-History
-Favicons
 Settings.ini
 Settings-1.ini
 Settings-2.ini
 test.py
-opera.py
 Combiner.log
 makeCombinerExe.bat
-3
+faviconGlobe.py
+oldGlobeFavicon.png

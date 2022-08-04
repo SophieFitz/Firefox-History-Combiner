@@ -338,9 +338,14 @@ def checkPost62(cur, dbName):
 	return tablePresent(cur, dbName, 'moz_origins') # Return either True or False
 
 def checkPost96(cur, dbName): 
-	# Firefox 96 has just entered Beta (07-12-21). I frequently check the source code and they recently added this:
-	# https://searchfox.org/mozilla-central/source/toolkit/components/places/Database.cpp#2320
+	# Firefox 96 has just entered Beta (07/12/21). I frequently check the source code and they recently added this:
+	# https://searchfox.org/mozilla-central/source/toolkit/components/places/Database.cpp#2405
 	return columnPresent(cur, dbName, 'moz_places', 'site_name')
+
+def checkPost104(cur, dbName):
+	# Firefox 104 has just entered Beta (25/07/2022). This has been added:
+	# https://searchfox.org/mozilla-central/source/toolkit/components/places/Database.cpp#2581
+	pass
 
 def remove_RemakeIndeces(cur, mainDBName, table, action):
 	# For a significant performance increase, remove all non-unique indeces from the required table.

@@ -12,9 +12,10 @@ from programFiles.combinerFunctions.favicons import mozFavicons
 from programFiles.combinerFunctions.annos import annotations
 
 from programFiles.combinerFunctions.Supplementary.updateEntries import updateFrecency, updateVisit_foreignCounts, updatePlaceURLHashes, updateIcons_toPages
-from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkPre55, columnPresent, removeReorderColumns, allOldEntriesGet
+from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkPre55, columnPresent, removeReorderTableColumns, allOldEntriesGet
 from programFiles.combinerFunctions.Supplementary.createBlankDBs import createBlankFaviconsDB
-from programFiles.combinerFunctions.Supplementary.otherFunctions import faviconsFiles
+from programFiles.combinerFunctions.Supplementary.getModifyValues import faviconsFiles
+
 
 def combiner():
 	def combineTables(dbExtPath, dbExtIcons):
@@ -56,6 +57,7 @@ def combiner():
 		curMain.connection.commit()
 		curMain.execute('detach dbExt')
 
+
 	startTime = time.time()
 
 	# Get logger
@@ -66,10 +68,16 @@ def combiner():
 	# DB variables set up here.
 	allDBsPre55, allDBsPost55 = faviconsFiles('Combine')
 
-	dbMain = sqlite3.connect(Path.cwd().joinpath('places.sqlite'))
+
+	# Transfer contents of main DB into memory. Improves HDD performance drastically (specifically for bookmarks processing).
+	dbMainSource = sqlite3.connect(g.primaryDBFolder.joinpath('places.sqlite'))
+	dbMain = sqlite3.connect(':memory:')
+	dbMainSource.backup(dbMain)
+	dbMainSource.close()
+
 	dbMain.row_factory = sqlite3.Row
-	
 	curMain = dbMain.cursor()
+
 	g.dbMain = dbMain
 
 
@@ -83,14 +91,15 @@ def combiner():
 	curMain.execute('pragma wal_checkpoint = truncate')
 	curMain.connection.commit()
 
+	g.updateProgBar.emit(100)
 
 	dbInsPre55 = checkPre55(curMain, 'main')
 	insBookmarksGUID = columnPresent(curMain, 'main', 'moz_bookmarks', 'guid')
 	if dbInsPre55 == False:
-		mainFaviconsPath = Path.cwd().joinpath('favicons.sqlite')
-		# If main favicons.sqlite is missing, create a new blank one and populate it with the rest of the DBs.
+		mainFaviconsPath = g.primaryDBFolder.joinpath('favicons.sqlite')
+		# If main favicons.sqlite is missing, create a new blank one.
 		if mainFaviconsPath.is_file() == False:
-			createBlankFaviconsDB(mainFaviconsPath, curMain)
+			createBlankFaviconsDB(Path.cwd().joinpath('favicons.sqlite'), curMain)
 
 		# Attach favicons.sqlite DB to the main connection object as mainIcons
 		sql = f'attach "{mainFaviconsPath}" as mainIcons'
@@ -98,7 +107,7 @@ def combiner():
 
 		# Remove favicon_id column from DB insert, if present.
 		faviconIDPresent = columnPresent(curMain, 'main', 'moz_places', 'favicon_id')
-		if faviconIDPresent == True: removeReorderColumns(curMain, 'main', 'moz_places', {'remove': ['favicon_id']})
+		if faviconIDPresent == True: removeReorderTableColumns(curMain, 'main', 'moz_places', {'remove': ['favicon_id']})
 
 	elif dbInsPre55 == True:
 		if insBookmarksGUID == False: print('\nThe main DB must be newer than Firefox 4.0 to transfer bookmarks.\n')
@@ -138,6 +147,12 @@ def combiner():
 	print('Compacting and optimising database....')    
 	curMain.execute('vacuum')
 	curMain.execute('pragma optimize') # Why not
+
+	# Copy combined DBs back onto disk.
+	dbMain.backup(sqlite3.connect(Path.cwd().joinpath('places.sqlite')), name = 'main')
+	if Path.cwd().joinpath('favicons.sqlite').is_file() == True:
+		dbMain.backup(sqlite3.connect(Path.cwd().joinpath('favicons.sqlite')), name = 'mainIcons')
+
 	curMain.connection.commit()
 	curMain.close()
 

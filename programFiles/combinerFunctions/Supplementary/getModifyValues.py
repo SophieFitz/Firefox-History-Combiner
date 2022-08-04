@@ -5,16 +5,117 @@
 # ESR 78.0 is the last searchable-online repository that contains the since-removed favicons conversion code.
 # I have re-implemented this code in my function 'contertToPNG()', basing it on 'FetchAndConvertUnsupportedPayloads::ConvertPayload'.
 # See: https://searchfox.org/mozilla-esr78/source/toolkit/components/places/FaviconHelpers.cpp#1221
-
-
 from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkPre55
 from programFiles.guiClasses.misc import checkStopPressed
 from PIL import Image, ImageFile
+from pathlib import Path
 from io import BytesIO
 
 import programFiles.globalVars as g
+import sqlite3, ast
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True # Ignore
+
+
+def faviconsFiles(stage):
+	# Create lists of DBs to extract history data from!
+	allDBsPre55 = []
+	allDBsPost55 = []
+
+	missingIconsList = []
+
+	isProfile = False
+	allDBFolders = ast.literal_eval(g.combinerConfig.get('History Combiner', 'DB folders'))
+
+	for folder in allDBFolders:
+		folder = Path(folder)
+
+		for path in folder.iterdir():
+			if path.name == 'prefs.js': isProfile = True
+
+		if folder == g.primaryDBFolder: continue  # Don't combine the Primary DB into itself! Waste of time.
+
+		if isProfile == True:
+			faviconsDB = [db for db in folder.iterdir() if db.name == 'favicons.sqlite']
+			placesDB = [db for db in folder.iterdir() if db.name == 'places.sqlite']
+			if len(faviconsDB) == 1: allDBsPre55.extend([faviconsDB[0], placesDB[0]])  # Have to reverse these as for some reason, faviconsDB becomes None otherwise
+			elif len(faviconsDB) == 0: allDBsPre55.append(placesDB[0])
+
+		elif isProfile == False:
+			# recursive = g.combinerConfig.getint('History Combiner', 'Recursive')
+
+			# if recursive == 0: folderDBs = [db for db in folder.glob('*.sqlite')]
+			# elif recursive == 2: folderDBs = [db for db in folder.rglob('*.sqlite')] # rglob is recursive glob.
+
+			folderDBs = [db for db in folder.rglob('*.sqlite')]  # rglob is recursive glob. Might as well look in all subfolders.
+			allDBsPre55.extend(folderDBs)
+
+	# All DBs are initially assumed to be pre FF 55. This loop transfers those that aren't into 'allDBsPost55'.
+	for db in allDBsPre55:
+		if db.name.startswith('places'):
+			dbCon = sqlite3.connect(db)
+			dbCur = dbCon.cursor()
+			dbPre55 = checkPre55(dbCur, 'main')
+
+			# Only check for favicons.sqlite if places.sqlite is definitely above FF 55.
+			if dbPre55 == False:
+				allDBsPost55.append(db)
+
+				# Can't remove yet as it messes up the indeces of 'allDBsPre55', which is currently being looped over!
+				# Therefore, set to None and remove later.
+				allDBsPre55[allDBsPre55.index(db)] = None
+
+				dbNumberSuffix = db.name.split('places')[1]
+				db2 = db.parent.joinpath(f'favicons{dbNumberSuffix}')
+
+				# Finally, look for its reciprocal favicons.sqlite DB.
+				if db2 in allDBsPre55:
+					# Can't remove yet as it messes up the indeces of 'allDBsPre55', which is currently being looped over!
+					# Therefore, set to None and remove later.
+					allDBsPre55[allDBsPre55.index(db2)] = None
+
+				elif db2 not in allDBsPre55:
+					# Re-order so that favicons.sqlite is always first, rather than last.
+					if db2.name == 'favicons.sqlite': missingIconsList.insert(0, db)
+					else: missingIconsList.append(db)
+
+			dbCon.commit()
+			dbCur.close()
+
+	if stage == 'Check':
+		curMain = sqlite3.connect(g.primaryDBFolder.joinpath('places.sqlite')).cursor()  # DB is presumed to have the name 'places.sqlite'.
+		mainPre55 = checkPre55(curMain, 'main')
+		mainIconsMissing = None
+
+		if mainPre55 == False:
+			hasFavicons = g.primaryDBFolder.joinpath('favicons.sqlite').is_file()
+			if hasFavicons == False:
+				mainIconsMissing = g.primaryDBFolder.joinpath('places.sqlite')
+
+		curMain.connection.commit()
+		curMain.close()
+
+		return (mainIconsMissing, missingIconsList)
+
+	elif stage == 'Combine':
+		# Finish removal of DBs that are above FF 55 whose values have already been transferred to the reciprocal 'allDBsPost55' list.
+		allDBsPre55 = [db for db in allDBsPre55 if db is not None]
+		return (allDBsPre55, allDBsPost55)
+
+
+def originsGetPrefixHost(url):
+	if url.find('://') != -1:
+		partTwo = '://'
+	elif url.find(':') != -1:
+		partTwo = ':'
+
+	(prefix, domain) = url.split(partTwo)[0:2]
+	prefix += partTwo
+
+	domain = domain.split('/')[0]
+	if any(remPrefix in prefix for remPrefix in ('file', 'mega', 'place', 'javascript')): domain = ''
+
+	return (prefix, domain)
 
 
 def getMimeType(iconBlob):

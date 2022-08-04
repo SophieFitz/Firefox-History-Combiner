@@ -1,8 +1,7 @@
 from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkUTF8, checkPost62, checkPost96, columnPresent,\
 																	  remove_RemakeIndeces, getDBExtPath, removeReorderTableColumns, reorderColumnSql
 
-from programFiles.combinerFunctions.Supplementary.otherFunctions import originsGetPrefixHost
-from programFiles.combinerFunctions.Supplementary.getModifyValues import insUpdFaviconIDs
+from programFiles.combinerFunctions.Supplementary.getModifyValues import insUpdFaviconIDs, originsGetPrefixHost
 from programFiles.combinerFunctions.combineLoops import combineLoops
 from programFiles.guiClasses.misc import checkStopPressed
 
@@ -174,9 +173,8 @@ def mozPlaces(dbArgs):
 		elif dbInsPost62 == True:
 			defaultValues = [lastVisitDate, guid, foreignCount, urlHash, description, previewImageURL, tempOriginID]
 
-		elif dbInsPost96 == True:
-			defaultValues = [lastVisitDate, guid, foreignCount, urlHash, description, previewImageURL, tempOriginID, siteName]
-
+			if dbInsPost96 == True:
+				defaultValues = [lastVisitDate, guid, foreignCount, urlHash, description, previewImageURL, tempOriginID, siteName]
 
 
 		# Both DBs are above FF 62.0
@@ -225,7 +223,6 @@ def mozPlaces(dbArgs):
 
 
 		curMain.connection.commit()
-
 		# Finally, combine the tables together!!
 		loopDetails = {'tableName': 'main.moz_places', 'dbExtName': 'dbExt', 'defaultValues': defaultValues,
 					   'oldEntries': {'tables': ['moz_places']},
@@ -277,8 +274,8 @@ def mozHistoryVisits(curMain):
 							  dictSchema = 'entry[0]: list(entry)', blockSize = 1000)
 
 	includeDownloads = g.combinerConfig.getint('History Combiner', 'Include downloads')
-	newVisitsEdited = newVisits
-	
+	newVisitsEdited = {key: {} for key in newVisits.keys()}
+
 	for blockNum, blockData in newVisits.items():
 		checkStopPressed()
 
@@ -311,18 +308,16 @@ def mozHistoryVisits(curMain):
 			if fkGUID in oldPlaceGUIDs_IDs.keys() and historyVisit[3] in oldHistoryDates.keys(): continue
 			if includeDownloads == 0 and historyVisit[4] == 7: continue # Downloads are ignored if the option is checked.
 
-
-			fromVisitDiff = historyVisit[0] - historyVisit[1] # Get the original visit difference
-			historyVisit.append(fromVisitDiff) # Append visit diff
-
-			# if historyVisit[1] > 0: historyVisit[1] = historyVisit[0] - fromVisitDiff
+			fromVisitDiff = historyVisit[0] - historyVisit[1]  # Get the original visit difference
+			historyVisit.append(fromVisitDiff)  # Append visit diff
 
 			newVisitsEdited[blockNum].update({historyVisit[0]: historyVisit})
-
 
 	loopDetails = {'tableName': 'main.moz_historyvisits', 'dbExtName': 'dbExt', 'defaultValues': [],
 				   'oldEntries': {'tables': ['moz_historyvisits']},
 				   'newEntries': {'entries': newVisitsEdited},
+
+				   # if historyVisit[1] > 0: historyVisit[1] = historyVisit[0] - fromVisitDiff
 				   'Conditional': {'1': 'if entry[1] > 0: entry[1] = entry[0] - entry[6]'}}
 
 	combineLoops(curMain, loopDetails)

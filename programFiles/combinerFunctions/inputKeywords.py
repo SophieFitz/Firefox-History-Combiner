@@ -123,6 +123,7 @@ def mozKeywords(curMain):
 
 			newKeywordsEdited.update({keyword[0]: keyword})
 
+		newKeywordsEdited = getAllEntries(entries = newKeywordsEdited, blockSize = 1000) # Convert to blocks
 		loopDetails.update({'defaultValues': [], 'dbExtName': 'dbExt', 'newEntries': {'entries': newKeywordsEdited}})
 	
 	combineLoops(curMain, loopDetails)

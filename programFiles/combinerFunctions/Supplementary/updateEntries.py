@@ -7,8 +7,7 @@
 
 
 from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, getNewID, checkPost62, columnPresent, remove_RemakeIndeces
-from programFiles.combinerFunctions.Supplementary.getModifyValues import convertToPNG, getRoot
-from programFiles.combinerFunctions.Supplementary.otherFunctions import originsGetPrefixHost
+from programFiles.combinerFunctions.Supplementary.getModifyValues import convertToPNG, getRoot, originsGetPrefixHost
 from programFiles.combinerFunctions.Supplementary.urlHashing import getHash
 from programFiles.guiClasses.misc import checkStopPressed
 

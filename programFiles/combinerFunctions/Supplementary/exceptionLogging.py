@@ -1,4 +1,4 @@
-from programFiles.combinerFunctions.Supplementary.otherFunctions import faviconsFiles
+from programFiles.combinerFunctions.Supplementary.getModifyValues import faviconsFiles
 from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries
 from copy import deepcopy
 from pathlib import Path
@@ -60,6 +60,7 @@ def insertExceptionLog(items, checkState):
 				     ''
 					f'\n\n{errorTrace}')
 
+	print(errorTrace)
 	table = errorTrace.__str__().split()[-1].split('.')[0]
 	schemaSQL = f'SELECT * from {mainDBName}.{table}'
 	schema = curMain.execute(schemaSQL).fetchone().keys()
@@ -154,18 +155,21 @@ def dictExceptionLog(items, checkState):
 	return errorMessage
 
 
-def generalExceptionLog(errorMessage):
-	# If the exception type is more of a general error (i.e. I have no idea what caused it), I want as much information as possible in the logfile. 
+def logConnectedDBSchemas(errorMessage, checkState):
+	# If the exception type is more of a general error (i.e. I have no idea what caused it), I may need more information.
 	# In that vein, this function adds the table schemas for all connected DBs to the logfile.
 
-	def logDBSchema(cur, dbName, dbPath, errorMessage):
+	def formatDBSchema(cur, dbName, dbPath, errorMessage):
 		sql = f'SELECT name from {dbName}.sqlite_master where type = ?'
-		try: tablesGet = cur.execute(sql, ('table',)).fetchall()
-		except sqlite3.OperationalError: return errorMessage
+		tablesGet = cur.execute(sql, ('table',)).fetchall()
 
+		# Depending on whether users want the all the metadata stuff combined, this list may need modifying accordingly.
+		tablesToIgnore = ['sqlite_sequence', 'moz_meta', 'moz_places_metadata', 'moz_places_metadata_search_queries',
+						  'moz_places_metadata_snapshots', 'moz_places_metadata_snapshots_extra', 'moz_places_metadata_snapshots_groups',
+						  'moz_places_metadata_groups_to_snapshots', 'moz_session_metadata', 'moz_session_to_places', 'sqlite_stat1']
 
-		tables = [name[0] for name in tablesGet]
-		errorMessage += f'\n\n\nDB name: "{dbName}"\nDB path: "{dbPath}"\n\nTable schemas:'
+		tables = [name[0] for name in tablesGet if name[0] not in tablesToIgnore]
+		errorMessage += f'\n\n\n\n\nDB name: "{dbName}"\nDB path: "{dbPath}"\n\nTable schemas:'
 
 		for table in tables:
 			sql = f'pragma {dbName}.table_info({table})'
@@ -182,74 +186,73 @@ def generalExceptionLog(errorMessage):
 				elif col[0] == len(colsGet) -1:
 					colNums += str(col[0]) + (' ' * spaces) + ']'			
 
-			errorMessage += f'\n{table}\n{colNums}\n{colNames}\n'
+			errorMessage += f'\n{table}\n{colNames}\n{colNums}\n'
 
 		return errorMessage
 
+	if checkState == 2:
+		dbNames = {'main': g.primaryDBFolder.joinpath('places.sqlite')}
 
-	dbNames = {'main': g.primaryDBFolder.joinpath('places.sqlite'), 'mainIcons': '', 'dbExt': '', 'extIcons': ''}
+		dbCon = sqlite3.connect(dbNames['main'])
+		cur = dbCon.cursor()
 
-	dbCon = sqlite3.connect(dbNames['main'])
-	cur = dbCon.cursor()
-
-	mainFaviconsPath = g.primaryDBFolder.joinpath('favicons.sqlite')
-	if mainFaviconsPath.is_file() == True:
-		sql = f'attach "{mainFaviconsPath}" as mainIcons'
-		dbNames['mainIcons'] = mainFaviconsPath
-		cur.execute(sql)
-
-
-	allDBsPre55, allDBsPost55 = faviconsFiles('Combine')
-	finishedDBs = []
-
-	with open('Combiner.log', 'r') as logFile:
-		allLines = logFile.readlines()
-
-		lineNum = 0
-		for line in reversed(allLines):
-			if 'Completed:' in line: break
-			lineNum += 1
-
-		dbLines = allLines[(len(allLines) -1) - lineNum:]
-
-		for line in dbLines:
-			if line not in ('\n', 'Completed:\n'):
-				line = line[:-1] # Remove trailing \n
-				finishedDBs.append(Path(line))
-
-			elif line == '\n': break
-
-
-	for db in finishedDBs:
-		if db in allDBsPre55: allDBsPre55.remove(db)
-		elif db in allDBsPost55: allDBsPost55.remove(db)
-
-	if len(allDBsPre55) > 0:
-		sql = f'attach "{allDBsPre55[0]}" as dbExt'
-		dbNames['dbExt'] = allDBsPre55[0]
-		cur.execute(sql)
-
-	elif len(allDBsPost55) > 0:
-		dbExtPath = allDBsPost55[0]
-
-		sql = f'attach "{dbExtPath}" as dbExt'
-		dbNames['dbExt'] = allDBsPost55[0]
-		cur.execute(sql)
-
-		dbNumberSuffix = dbExtPath.name.split('places')[1]
-		db2 = dbExtPath.parent.joinpath(f'favicons{dbNumberSuffix}')
-		
-		# Check if it already exists, otherwise it creates a 0-byte placeholder DB which I don't want.
-		if db2.is_file() == True:
-			sql = f'attach "{db2}" as extIcons'
-			dbNames['extIcons'] = db2
+		mainFaviconsPath = g.primaryDBFolder.joinpath('favicons.sqlite')
+		if mainFaviconsPath.is_file() == True:
+			sql = f'attach "{mainFaviconsPath}" as mainIcons'
+			dbNames.update({'mainIcons': mainFaviconsPath})
 			cur.execute(sql)
-			
 
-	for dbName, dbPath in dbNames.items():
-		errorMessage = logDBSchema(cur, dbName, dbPath, errorMessage)
 
-	cur.connection.commit()
-	cur.close()
+		allDBsPre55, allDBsPost55 = faviconsFiles('Combine')
+		finishedDBs = []
+
+		with open('Combiner.log', 'r') as logFile:
+			allLines = logFile.readlines()
+
+			lineNum = 0
+			for line in reversed(allLines):
+				if 'Completed:' in line: break
+				lineNum += 1
+
+			dbLines = allLines[(len(allLines) -1) - lineNum:]
+
+			for line in dbLines:
+				if line not in ('\n', 'Completed:\n'):
+					line = line[:-1] # Remove trailing \n
+					finishedDBs.append(Path(line))
+
+				elif line == '\n': break
+
+
+		for db in finishedDBs:
+			if db in allDBsPre55: allDBsPre55.remove(db)
+			elif db in allDBsPost55: allDBsPost55.remove(db)
+
+		if len(allDBsPre55) > 0:
+			sql = f'attach "{allDBsPre55[0]}" as dbExt'
+			dbNames.update({'dbExt': allDBsPre55[0]})
+			cur.execute(sql)
+
+		elif len(allDBsPost55) > 0:
+			dbExtPath = allDBsPost55[0]
+
+			sql = f'attach "{dbExtPath}" as dbExt'
+			dbNames.update({'dbExt': dbExtPath})
+			cur.execute(sql)
+
+			dbNumberSuffix = dbExtPath.name.split('places')[1]
+			db2 = dbExtPath.parent.joinpath(f'favicons{dbNumberSuffix}')
+
+			# Check if it already exists, otherwise it creates a 0-byte placeholder DB which I don't want.
+			if db2.is_file() == True:
+				sql = f'attach "{db2}" as extIcons'
+				dbNames.update({'extIcons': db2})
+				cur.execute(sql)
+
+		for dbName, dbPath in dbNames.items():
+			errorMessage = formatDBSchema(cur, dbName, dbPath, errorMessage)
+
+		cur.connection.commit()
+		cur.close()
 
 	return errorMessage

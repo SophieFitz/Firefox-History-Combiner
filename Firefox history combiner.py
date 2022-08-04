@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QApplication, QDesktopWidget, QMainWindow
 from configparser import ConfigParser
 from pathlib import Path
 
-from programFiles.combinerFunctions.Supplementary.otherFunctions import removeOrphanedSqliteFiles, removeTempFiles
+from programFiles.otherFunctions import removeOrphanedSqliteFiles, removeTempFiles
 from programFiles.guiClasses.warning_info import createWarning_InfoDialog
 from programFiles.guiClasses.mainWidget import createMainWidget
 from programFiles.guiClasses.misc import confirmChanges
@@ -89,7 +89,7 @@ message = ['Welcome to Firefox History Combiner!',
 # welcomeDialog.messageLabel.setToolTip(frecencyLink)
 welcomeDialog = createWarning_InfoDialog('Welcome', message, 'OK', 'Info', 'Welcome')
 
-# Assume no DB folders means it's the program's first run. Therefore show the DB folder selection dialog.
+# No DB folders means it's the program's first run. Therefore show the DB folder selection dialog.
 dbFoldersLen = len(ast.literal_eval(g.combinerConfig.get('History Combiner', 'DB folders')))
 
 if dbFoldersLen == 0:
