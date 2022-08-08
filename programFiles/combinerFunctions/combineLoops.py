@@ -1,5 +1,5 @@
-import logging, time
 import programFiles.globalVars as g
+import logging, time
 
 from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, blocksToNormal, getNewID, remove_RemakeIndeces, getDBExtPath
 from programFiles.combinerFunctions.Supplementary.getModifyValues import updateOldEntries
@@ -11,15 +11,14 @@ def combineLoops(curMain, allDetails):
 	defaultValues = allDetails.get('defaultValues')
 	tableName = allDetails.get('tableName')
 	dbExtName = allDetails.get('dbExtName')
-	dupExec = allDetails.get('duplicateExec')
+	dupCols = allDetails.get('duplicateCols')
 
 	oldEntries = allDetails.get('oldEntries')
 	newEntries = allDetails.get('newEntries')
 	oldEntryTables = oldEntries.get('tables')
-	
+
 	insertDetails = allDetails.get('Insert')
 	modifyDetails = allDetails.get('Modify')
-	conditionalDetails = allDetails.get('Conditional')
 
 	curMain.execute('begin')
 
@@ -27,30 +26,40 @@ def combineLoops(curMain, allDetails):
 	elif oldEntryTables          is not None: oldEntries = g.oldEntries.get(oldEntryTables[0]) # Get old entries from globalVars
 
 	if newEntries.get('entries') is not None: newEntries = newEntries.get('entries')
-	elif newEntries.get('SQL')   is not None: newEntries = getAllEntries(cur = curMain, SQL = newEntries.get('SQL'), 
-																		 dictSchema = newEntries.get('schema'), 
-																		 blockSize = newEntries.get('blockSize'))
+	elif newEntries.get('SQL')   is not None: newEntries = getAllEntries(cur = curMain, SQL = newEntries.get('SQL'),
+		 dictSchema = newEntries.get('schema'), blockSize = newEntries.get('blockSize'))
 
-	# Set dupExec to empty string if it's None
-	if dupExec is None: dupExec = ''
 
-	lastID = getNewID(curMain, tableName)
-	newEntriesEdited = {key: {} for key in newEntries.keys()}
-	removeDuplicates = ('i = 0\n'
-						'for blockNum, blockData in newEntries.items():\n\t'
-							'checkStopPressed()\n\t'
-								
-							'for key, entry in blockData.items():\n\t\t'
-								+ dupExec + '\n\t\t'
-								'entry[0] = i + lastID; i += 1\n\t\t'
-								'newEntriesEdited[blockNum].update({key: entry})')
-	
 	# Remove duplicate entries and set IDs.
-	exec(removeDuplicates)
+	newEntriesEdited = {key: {} for key in newEntries.keys()}
+	lastID = getNewID(curMain, tableName)
+	i = 0
 
-	
+	if type(dupCols) is int:
+		for blockNum, blockData in newEntries.items():
+			checkStopPressed()
+
+			for key, entry in blockData.items():
+				dupKey = entry[dupCols]
+				if dupKey in oldEntries.keys(): continue
+
+				entry[0] = i + lastID; i += 1
+				newEntriesEdited[blockNum].update({key: entry})
+
+	elif type(dupCols) is tuple:
+		for blockNum, blockData in newEntries.items():
+			checkStopPressed()
+
+			for key, entry in blockData.items():
+				dupKey = tuple([entry[dupCols[i]] for i in range(len(dupCols))])
+				if dupKey in oldEntries.keys(): continue
+
+				entry[0] = i + lastID; i += 1
+				newEntriesEdited[blockNum].update({key: entry})
+
+
 	# Insert new values 
-	if insertDetails is not None:
+	if insertDetails:
 		funcs = insertDetails.get('functions')
 		cols = insertDetails.get('cols')
 		pos = insertDetails.get('pos')
@@ -80,7 +89,7 @@ def combineLoops(curMain, allDetails):
 
 
 	# Modify existing values with functions
-	if modifyDetails is not None:
+	if modifyDetails:
 		funcs = modifyDetails.get('functions')
 		cols = modifyDetails.get('cols')
 
@@ -93,18 +102,6 @@ def combineLoops(curMain, allDetails):
 					toCol = cols[i][1]
 					entry[toCol] = funcs[i](entry[fromCol])
 					newEntriesEdited[blockNum].update({key: entry})
-		
-	# Modify existing values with conditions
-	if conditionalDetails is not None:
-		for condition in conditionalDetails.values():
-			condExec = ('for blockNum, blockData in newEntriesEdited.items():\n\t'
-							'checkStopPressed()\n\t'
-
-							'for key, entry in blockData.items():\n\t\t'
-								+ condition + '\n\t\t'
-								'newEntriesEdited[blockNum].update({key: entry})')
-
-			exec(condExec)
 
 
 	mainDBName, table = tableName.split('.')

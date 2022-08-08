@@ -24,8 +24,8 @@ def mozFavicons(dbArgs):
 			# moz_favicons
 			loopDetails = {'tableName': 'main.moz_favicons', 'dbExtName': 'dbExt', 'defaultValues': [guid],
 						   'oldEntries': {'tables': ['moz_favicons']},
-						   'newEntries': {'SQL': 'SELECT * from dbExt.moz_favicons', 'schema': 'entry[0]: list(entry)', 'blockSize': 1000},
-						   'duplicateExec': 'if entry[1] in oldEntries.keys(): continue'}
+						   'newEntries': {'SQL': 'SELECT * from dbExt.moz_favicons', 'schema': [0, 'list'], 'blockSize': 1000},
+						   'duplicateCols': 1}
 
 			combineLoops(curMain, loopDetails)
 
@@ -38,17 +38,35 @@ def mozFavicons(dbArgs):
 				guid = None
 
 				sql = 'SELECT id, icon_url, data, width, expire_ms from extIcons.moz_icons order by width asc'
+				newFavicons = getAllEntries(cur = curMain, SQL = sql, dictSchema = [1, 'list'], blockSize = 1000)
+				newFaviconsEdited = {key: {} for key in newFavicons.keys()}
+
+				for blockNum, blockData in newFavicons.items():
+					checkStopPressed()
+
+					for key, entry in blockData.items():
+						entry.append(entry[3]) # Copy width to the end
+						entry[3] = getMimeType(entry[2]) # Get the mime_type
+						entry[2] = resizeImage(entry[2]) # Resize the image if necessary.
+
+						# Some icons may have an expiration of 0 (i.e. never expire).
+						# Icons that don't must be multiplied by 1000 as 'moz_favicons' uses microseconds.
+						if entry[4] > 0: entry[4] *= 1000
+
+						# It's possible there are icons that aren't properly converted to .png files.
+						# In this instance, 'moz_icons' stores the original mime_type value from 'moz_favicons' in its 'width' column.
+						# This clause simply checks if the 'mime_type' column is missing the image type.
+						# If it is, the 'width' column's value is copied to 'mime_type'.
+						# This shouldn't happen under normal circumstances as Firefox periodically updates all its databases.... But just in case.
+						if entry[3] == 'image/': entry[3] = entry[5]
+
+						newFaviconsEdited[blockNum].update({key: entry})
 
 				# moz_favicons
 				loopDetails = {'tableName': 'main.moz_favicons', 'dbExtName': 'extIcons', 'defaultValues': [guid],
 							   'oldEntries': {'tables': ['moz_favicons']},
-							   'newEntries': {'SQL': sql, 'schema': 'entry[1]: list(entry)', 'blockSize': 1000},
-							   'duplicateExec': 'if entry[1] in oldEntries.keys(): continue',
-							   'Insert': {'functions': [lambda val: val], 'pos': [5], 'cols': [3]}, # Copy width to the end, then delete it.
-							   'Modify': {'functions': [getMimeType, resizeImage], 'cols': [[2, 3], [2, 2]]},
-							   'Conditional': {'1': 'if entry[4] > 0: entry[4] *= 1000', 
-											   '2': 'if entry[3] == "image/": entry[3] = entry[5]',
-											   '3': 'del entry[5]'}}
+							   'newEntries': {'entries': newFaviconsEdited},
+							   'duplicateCols': 1}
 
 				combineLoops(curMain, loopDetails)
 
@@ -62,15 +80,13 @@ def mozFavicons(dbArgs):
 		if 'extIcons' not in dbList and dbExtPre55 == False: print('favicons.sqlite file is missing')
 		elif 'extIcons' in dbList and dbExtPre55 == False:
 			print('*moz_icons*, *moz_pages_w_icons* and *moz_icons_to_pages*')
-			newIcons = getAllEntries(cur = curMain, SQL = 'SELECT * from extIcons.moz_icons', dictSchema = 'entry[0]: list(entry)', blockSize = 1000)
-			newIconID = getNewID(curMain, 'mainIcons.moz_icons')
-			newWPageID = getNewID(curMain, 'mainIcons.moz_pages_w_icons')
+			newIcons = getAllEntries(cur = curMain, SQL = 'SELECT * from extIcons.moz_icons', dictSchema = [0, 'list'])
 
 			# moz_icons
 			loopDetails = {'tableName': 'mainIcons.moz_icons', 'dbExtName': 'extIcons', 'defaultValues': [],
 						   'oldEntries': {'tables': ['moz_icons']},
 						   'newEntries': {'entries': newIcons},
-						   'duplicateExec': 'if (entry[1], entry[3]) in oldEntries.keys(): continue'}
+						   'duplicateCols': (1, 3)}
 
 			combineLoops(curMain, loopDetails)
 
@@ -79,19 +95,16 @@ def mozFavicons(dbArgs):
 			# In one of my DBs that I checked for these sorts of duplicates, I found one that pointed to the wrong icon. 
 			# Luckily, Python dictionaries automatically discard duplicate Keys. 
 			# And since I'm looping through in order of 'id' it will discard newer entries that are tarnished, so this should be fine.
-			newWPages = getAllEntries(cur = curMain, SQL = 'SELECT * from extIcons.moz_pages_w_icons order by id asc', 
-							   		  dictSchema = 'entry[0]: list(entry)', blockSize = 1000)
+			newWPages = getAllEntries(cur = curMain, SQL = 'SELECT * from extIcons.moz_pages_w_icons order by id asc', dictSchema = [0, 'list'])
 
 			# moz_pages_w_icons
 			loopDetails = {'tableName': 'mainIcons.moz_pages_w_icons', 'dbExtName': 'extIcons', 'defaultValues': [],
 						   'oldEntries': {'tables': ['moz_pages_w_icons']},
 						   'newEntries': {'entries': newWPages},
-						   'duplicateExec': 'if entry[1] in oldEntries.keys(): continue'}
+						   'duplicateCols': 1}
 
 			combineLoops(curMain, loopDetails)
 
-			newIcons = blocksToNormal(newIcons)
-			newWPages = blocksToNormal(newWPages)
 			newlyCombinedIcons = g.oldEntries.get('moz_icons')
 			newlyCombinedWPages = g.oldEntries.get('moz_pages_w_icons')
 
@@ -99,7 +112,8 @@ def mozFavicons(dbArgs):
 			expireMS = 0
 			
 			iconsPagesExtLen = len(curMain.execute('pragma extIcons.table_info(moz_icons_to_pages)').fetchall())
-			newToPages = getAllEntries(cur = curMain, SQL = 'SELECT * from extIcons.moz_icons_to_pages', dictSchema = 'tuple(entry): list(entry)', blockSize = 1000)
+			newToPages = getAllEntries(cur = curMain, SQL = 'SELECT * from extIcons.moz_icons_to_pages',
+				       				   dictSchema = [tuple(range(iconsPagesExtLen)), 'list'], blockSize = 1000)
 
 			for blockData in newToPages.values():
 				checkStopPressed()
@@ -172,19 +186,19 @@ def mozFavicons(dbArgs):
 			# moz_icons
 			loopDetails = {'tableName': 'mainIcons.moz_icons', 'dbExtName': 'dbExt', 'defaultValues': [],
 						   'oldEntries': {'tables': ['moz_icons', 'newlyCombinedIcons']},
-						   'newEntries': {'SQL': sql, 'schema': 'entry[0]: list(entry)', 'blockSize': 1000},
+						   'newEntries': {'SQL': sql, 'schema': [0, 'list'], 'blockSize': 1000},
 						   'Insert': {'functions': [removePrefix, getHash, getRoot], 'pos': [0, 3, 5, 6, 6], 'cols': [1, 0, 0, None, 0]},
-						   'duplicateExec': 'if (entry[1], entry[2]) in oldEntries.keys(): continue'}
+						   'duplicateCols': (1, 2)}
 
 			combineLoops(curMain, loopDetails)
 
-			sql = 'SELECT p.id, p.url FROM dbExt.moz_places p join dbExt.moz_favicons f on f.id = p.favicon_id'
 			# moz_pages_w_icons
+			sql = 'SELECT p.id, p.url FROM dbExt.moz_places p join dbExt.moz_favicons f on f.id = p.favicon_id'
 			loopDetails = {'tableName': 'mainIcons.moz_pages_w_icons', 'dbExtName': 'dbExt', 'defaultValues': [],
 						   'oldEntries': {'tables': ['moz_pages_w_icons']},
-						   'newEntries': {'SQL': sql, 'schema': 'entry[0]: list(entry)', 'blockSize': 1000},
+						   'newEntries': {'SQL': sql, 'schema': [0, 'list'], 'blockSize': 1000},
 						   'Insert': {'functions': [getHash], 'pos': [2], 'cols': [1]},
-						   'duplicateExec': 'if entry[1] in oldEntries.keys(): continue'}
+						   'duplicateCols': 1}
 
 			combineLoops(curMain, loopDetails)
 

@@ -61,7 +61,7 @@ def annotations(curMain, newBookmarkIDs):
 
 	oldPlaceIDsAnnoAttIDs = g.oldEntries.get('moz_annos')
 	oldPlaceGUIDs_IDs = g.oldEntries.get('moz_places')
-	newPlaceIDs_GUIDs = getAllEntries(cur = curMain, SQL = 'SELECT id, guid from dbExt.moz_places', dictSchema = 'entry[0]: entry[1]')
+	newPlaceIDs_GUIDs = getAllEntries(cur = curMain, SQL = 'SELECT id, guid from dbExt.moz_places', dictSchema = [0, 1])
 
 	curInsNewID = getNewID(curMain, 'main.moz_annos')
 
@@ -186,5 +186,5 @@ def annotations(curMain, newBookmarkIDs):
 					   'newEntries': {'entries': newItemAnnosEdited}}
 
 		# There is a unique index constraint on item_id and anno_attribute_id. Therefore skip duplicates.
-		loopDetails.update({'duplicateExec': 'if tuple(entry[1:3]) in oldEntries.keys(): continue'})
+		loopDetails.update({'duplicateCols': (1, 2)})
 		combineLoops(curMain, loopDetails)

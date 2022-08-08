@@ -5,9 +5,12 @@
 # ESR 78.0 is the last searchable-online repository that contains the since-removed favicons conversion code.
 # I have re-implemented this code in my function 'contertToPNG()', basing it on 'FetchAndConvertUnsupportedPayloads::ConvertPayload'.
 # See: https://searchfox.org/mozilla-esr78/source/toolkit/components/places/FaviconHelpers.cpp#1221
-from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkPre55
+from programFiles.combinerFunctions.Supplementary.sqlFunctions import \
+	 getAllEntries, checkPre55, checkPre12, checkPost62, columnPresent, checkUTF8, add_UpdateDictEntries
+
 from programFiles.guiClasses.misc import checkStopPressed
 from PIL import Image, ImageFile
+
 from pathlib import Path
 from io import BytesIO
 
@@ -130,6 +133,9 @@ def getMimeType(iconBlob):
 
 
 def resizeImage(iconBlob):
+	# Because some favicons display as white if not resized down to 32px.
+	# Only relevant if copying DBs from FF 55.0 and above, into a DB from below FF 55.0
+
 	# If the image is unreadable, return the image unchanged. In my test DB, there's only one image that fails like this.
 	# This doesn't include SVGs which PIL apparently can't open anyway. Also, SVGs aren't converted to PNGs by Firefox so a direct copy is fine.
 	if iconBlob[:5] in (b'<?xml', b'<svg '): return iconBlob
@@ -253,10 +259,10 @@ def insUpdFaviconIDs(curMain, newPlaces, extFaviconID):
 						
 				 order by wPages.id asc, icons.width asc'''
 
-	pURLs_iURLs = getAllEntries(cur = curMain, SQL = sql, dictSchema = 'entry[0]: entry[1]')
-	oldIconURLs_IDs = getAllEntries(cur = curMain, SQL = 'SELECT url, id from main.moz_favicons', dictSchema = 'entry[0]: entry[1]')
+	pURLs_iURLs = getAllEntries(cur = curMain, SQL = sql, dictSchema = [0, 1])
+	oldIconURLs_IDs = getAllEntries(cur = curMain, SQL = 'SELECT url, id from main.moz_favicons', dictSchema = [0, 1])
 
-	iconURLs = getAllEntries(cur = curMain, SQL = 'SELECT icon_url from extIcons.moz_icons order by width asc', dictSchema = 'entry[0]: ""')
+	iconURLs = getAllEntries(cur = curMain, SQL = 'SELECT icon_url from extIcons.moz_icons order by width asc', dictSchema = [0, ''])
 	iconURLRoots = {}
 	for url in iconURLs.keys():
 		# For some reason, not all root icons have their root value set properly. Hence, find the roots manually.
@@ -277,29 +283,74 @@ def insUpdFaviconIDs(curMain, newPlaces, extFaviconID):
 	return newPlaces
 
 
+def allOldEntriesGet(curMain):
+	print('\nGetting all old entries in preparation for combining')
+
+	# Reset to empty
+	g.oldEntries = {}
+
+	pre12 = checkPre12(curMain, 'main')
+	pre55 = checkPre55(curMain, 'main')
+	post62 = checkPost62(curMain, 'main')
+
+	hosts_Origins = {}
+	bookmarksGUID = columnPresent(curMain, 'main', 'moz_bookmarks', 'guid')
+
+	tables_sqlSchema = {'moz_places':               ['SELECT guid, last_visit_date, id from main.moz_places',       [0, (1, 2)],
+													{'description': [None]}],
+
+						'moz_historyvisits':        ['SELECT visit_date from main.moz_historyvisits',               [0, '']],
+						'moz_annos':                ['SELECT place_id, anno_attribute_id from main.moz_annos',      [(0, 1), '']],
+						'moz_items_annos':          ['SELECT item_id, anno_attribute_id from main.moz_items_annos', [(0, 1), '']]}
+
+	if bookmarksGUID == True:
+		tables_sqlSchema.update({'moz_bookmarks':   ['SELECT guid from main.moz_bookmarks', 						[0, '']]})
+
+	if pre12 == False:
+		hosts_Origins = {'moz_hosts':               ['SELECT host from main.moz_hosts',                             [0, '']]}
+
+	elif post62 == True:
+		hosts_Origins = {'moz_origins':             ['SELECT prefix, host, id from main.moz_origins',              [(0, 1), 2]]}
+
+	if pre55 == True:
+		tables_sqlSchema = {'moz_favicons':         ['SELECT url, id from main.moz_favicons',                       [0 ,1]],
+													**hosts_Origins, **tables_sqlSchema}
+
+	elif pre55 == False:
+		tables_sqlSchema = {'moz_icons':            ['SELECT icon_url, width, id from mainIcons.moz_icons',        [(0, 1), 2]],
+							'newlyCombinedIcons':   ['SELECT icon_url, id from mainIcons.moz_icons',                [0 ,1]],
+							'moz_pages_w_icons':    ['SELECT page_url, id from mainIcons.moz_pages_w_icons',        [0 ,1]],
+													**hosts_Origins, **tables_sqlSchema}
+
+	for table, info in tables_sqlSchema.items():
+		if len(info) == 2: entries = getAllEntries(cur = curMain, SQL = info[0], dictSchema = info[1])
+		elif len(info) == 3: entries = checkUTF8(cur = curMain, SQL = info[0], dictSchema = info[1], colsToCheck = info[2]) # Check and get utf-8 encodable entries
+
+		g.oldEntries.update({table: entries})
+
+
 def updateOldEntries(curMain, oldEntryTables, newEntries):
 	# Updates globalVars.oldEntries to include all newly combined entries. This saves getting all the old (i.e. newly combined) entries repeatedly.
 	pre55 = checkPre55(curMain, 'main')
-	if   pre55 == False: placesSchema = 'entry[9]:  (entry[8], entry[0])'
-	elif pre55 == True:  placesSchema = 'entry[10]: (entry[9], entry[0])'
+	if   pre55 == False: placesSchema = [9, (8, 0)]
+	elif pre55 == True:  placesSchema = [10, (9, 0)]
 
 	for table in oldEntryTables:
 		schema = None
 		oldEntries = g.oldEntries.get(table)
 
-		if   table ==  'moz_hosts':                                                  schema =   'entry[1]:  ""'
-		elif table ==  'moz_origins':                                                schema =  '(entry[1],  entry[2]): entry[0]'
-		elif table in ('moz_pages_w_icons', 'moz_favicons', 'newlyCombinedIcons'):   schema =   'entry[1]:  entry[0]'
-		elif table in ('moz_annos', 'moz_items_annos'):                              schema =  '(entry[1],  entry[2]): ""'
-		elif table ==  'moz_historyvisits':                                          schema =   'entry[3]:  ""'
-		elif table ==  'moz_icons':                                                  schema =  '(entry[1],  entry[3]): entry[0]'
+		if   table ==  'moz_hosts':                                                  schema =    [1, '']
+		elif table ==  'moz_origins':                                                schema =   [(1, 2), 0]
+		elif table in ('moz_pages_w_icons', 'moz_favicons', 'newlyCombinedIcons'):   schema =    [1, 0]
+		elif table in ('moz_annos', 'moz_items_annos'):                              schema =   [(1, 2), '']
+		elif table ==  'moz_historyvisits':                                          schema =    [3, '']
+		elif table ==  'moz_icons':                                                  schema =   [(1, 3), 0]
 
 		elif table ==  'moz_places':    schema = placesSchema
 		elif table ==  'moz_bookmarks': newEntriesUpd = newEntries
 
 
-		if schema is not None: 
-			newEntriesUpd = {}
-			exec('newEntriesUpd.update({' + schema + ' for entry in newEntries.values()})')
+		if schema:
+			newEntriesUpd = add_UpdateDictEntries(newEntries.values(), {}, schema)
 
 		g.oldEntries.update({table: {**oldEntries, **newEntriesUpd}})

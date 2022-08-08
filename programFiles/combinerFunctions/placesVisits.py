@@ -17,8 +17,7 @@ def mozPlaces(dbArgs):
 	placesInsLen = len(curMain.execute('pragma main.table_info(moz_places)').fetchall())
 	placesExtLen = len(curMain.execute('pragma dbExt.table_info(moz_places)').fetchall())
 
-	newUrls_VisitDates = getAllEntries(cur = curMain, SQL = 'SELECT url, last_visit_date from dbExt.moz_places',
-									   dictSchema = 'entry[0]: entry[1]', blockSize = 1000)
+	newUrls_VisitDates = getAllEntries(cur = curMain, SQL = 'SELECT url, last_visit_date from dbExt.moz_places', dictSchema = [0, 1], blockSize = 1000)
 
 	remove_RemakeIndeces(curMain, 'main', 'moz_places', 'Remove')
 	# Only update 'last_visit_date' if the column actually exists 
@@ -83,14 +82,14 @@ def mozPlaces(dbArgs):
 		newPlacesSql = reorderColumnSql(curMain, 'dbExt', 'moz_places', newPlacesSql, {'site_name': colTo})
 
 
-	newPlaces = checkUTF8(curMain, newPlacesSql, 'entry[0]: list(entry)', {'description': [None]}, 1000)
+	newPlaces = checkUTF8(cur = curMain, SQL = newPlacesSql, dictSchema = [0, 'list'], colsToCheck = {'description': [None]}, blockSize = 1000)
 
 	if dbInsPre55 == True:
 		if dbExtPre55 == True:
 			defaultValues = [lastVisitDate, guid, foreignCount, urlHash]
 
 			oldIconURLs_IDs = g.oldEntries.get('moz_favicons')
-			newIconIDs_URLs = getAllEntries(cur = curMain, SQL = 'SELECT id, url from dbExt.moz_favicons', dictSchema = 'entry[0]: entry[1]')
+			newIconIDs_URLs = getAllEntries(cur = curMain, SQL = 'SELECT id, url from dbExt.moz_favicons', dictSchema = [0, 1])
 
 			# Because moz_favicons has already been merged at this stage, 'favicon_id' is pulled from main.moz_places
 			for blockNum, blockData in newPlaces.items():
@@ -149,7 +148,7 @@ def mozPlaces(dbArgs):
 		loopDetails = {'tableName': 'main.moz_places', 'dbExtName': 'dbExt', 'defaultValues': defaultValues,
 					   'oldEntries': {'tables': ['moz_places']},
 					   'newEntries': {'entries': newPlaces},
-					   'duplicateExec': 'if entry[10] in oldEntries.keys(): continue'}
+					   'duplicateCols': 10}
 
 		combineLoops(curMain, loopDetails)
 
@@ -190,7 +189,7 @@ def mozPlaces(dbArgs):
 				break
 
 
-			oldOriginIDs_PrefixHosts = getAllEntries(cur = curMain, SQL = 'SELECT id, prefix, host from dbExt.moz_origins', dictSchema = 'entry[0]: (entry[1], entry[2])')
+			oldOriginIDs_PrefixHosts = getAllEntries(cur = curMain, SQL = 'SELECT id, prefix, host from dbExt.moz_origins', dictSchema = [0, (1, 2)])
 			newOriginPrefixHosts_IDs = g.oldEntries.get('moz_origins')
 
 			for blockNum, blockData in newPlaces.items():
@@ -227,7 +226,7 @@ def mozPlaces(dbArgs):
 		loopDetails = {'tableName': 'main.moz_places', 'dbExtName': 'dbExt', 'defaultValues': defaultValues,
 					   'oldEntries': {'tables': ['moz_places']},
 					   'newEntries': {'entries': newPlaces},
-					   'duplicateExec': 'if entry[9] in oldEntries.keys(): continue'}
+					   'duplicateCols': 9}
 
 		combineLoops(curMain, loopDetails)
 
@@ -269,9 +268,8 @@ def mozHistoryVisits(curMain):
 
 	oldHistoryDates = g.oldEntries.get('moz_historyvisits')
 	oldPlaceGUIDs_IDs = g.oldEntries.get('moz_places')
-	newPlaceIDs_GUIDs = getAllEntries(cur = curMain, SQL = 'SELECT id, guid from dbExt.moz_places', dictSchema = 'entry[0]: entry[1]')
-	newVisits = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_historyvisits order by visit_type desc', 
-							  dictSchema = 'entry[0]: list(entry)', blockSize = 1000)
+	newPlaceIDs_GUIDs = getAllEntries(cur = curMain, SQL = 'SELECT id, guid from dbExt.moz_places', dictSchema = [0, 1])
+	newVisits = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_historyvisits order by visit_type desc', dictSchema = [0, 'list'], blockSize = 1000)
 
 	includeDownloads = g.combinerConfig.getint('History Combiner', 'Include downloads')
 	newVisitsEdited = {key: {} for key in newVisits.keys()}
@@ -309,15 +307,12 @@ def mozHistoryVisits(curMain):
 			if includeDownloads == 0 and historyVisit[4] == 7: continue # Downloads are ignored if the option is checked.
 
 			fromVisitDiff = historyVisit[0] - historyVisit[1]  # Get the original visit difference
-			historyVisit.append(fromVisitDiff)  # Append visit diff
+			if historyVisit[1] > 0: historyVisit[1] = historyVisit[0] - fromVisitDiff
 
 			newVisitsEdited[blockNum].update({historyVisit[0]: historyVisit})
 
 	loopDetails = {'tableName': 'main.moz_historyvisits', 'dbExtName': 'dbExt', 'defaultValues': [],
 				   'oldEntries': {'tables': ['moz_historyvisits']},
-				   'newEntries': {'entries': newVisitsEdited},
-
-				   # if historyVisit[1] > 0: historyVisit[1] = historyVisit[0] - fromVisitDiff
-				   'Conditional': {'1': 'if entry[1] > 0: entry[1] = entry[0] - entry[6]'}}
+				   'newEntries': {'entries': newVisitsEdited}}
 
 	combineLoops(curMain, loopDetails)

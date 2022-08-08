@@ -108,7 +108,7 @@ def updateFrecency(curToUpdate, updateFrecSetting, *oldPlaceGUIDs):
 
 
 	hostUpdatesDict = {}
-	allPlaces = getAllEntries(cur = curToUpdate, SQL = 'SELECT * from main.moz_places', dictSchema = 'entry[0]: list(entry)', blockSize = 1000)
+	allPlaces = getAllEntries(cur = curToUpdate, SQL = 'SELECT * from main.moz_places', dictSchema = [0, 'list'], blockSize = 1000)
 	allPlacesEdited = allPlaces
 
 	# If the 'Update only new entries` frecency' option is checked, skip all the old entries
@@ -144,7 +144,7 @@ def updateFrecency(curToUpdate, updateFrecSetting, *oldPlaceGUIDs):
 
 	if dbUpdPost62 == False:
 		oldHostNames = {}
-		if updateFrecSetting == 1: oldHostNames = getAllEntries(cur = curToUpdate, SQL = 'SELECT host from main.moz_hosts', dictSchema = 'entry[0]: ""')
+		if updateFrecSetting == 1: oldHostNames = getAllEntries(cur = curToUpdate, SQL = 'SELECT host from main.moz_hosts', dictSchema = [0, ''])
 
 		for domain, frecency in hostUpdatesDict.items():
 			if domain in oldHostNames.keys(): continue
@@ -169,7 +169,7 @@ def updateFrecency(curToUpdate, updateFrecSetting, *oldPlaceGUIDs):
 	elif dbUpdPost62 == True:
 		oldPrefixesHosts = {}
 		if updateFrecSetting == 1: 
-			oldPrefixesHosts = getAllEntries(cur = curToUpdate, SQL = 'SELECT prefix, host from main.moz_origins', dictSchema = 'tuple(entry): ""')
+			oldPrefixesHosts = getAllEntries(cur = curToUpdate, SQL = 'SELECT prefix, host from main.moz_origins', dictSchema = [(0, 1), ''])
 
 		for key, frecency in hostUpdatesDict.items():
 			prefix, domain = key
@@ -217,8 +217,7 @@ def updateVisit_foreignCounts(curToUpdate):
 def updatePlaceURLHashes(curToUpdate):
 	# Only update the column if it exists. Pre FF 50.0 it doesn't.
 	if columnPresent(curToUpdate, 'main', 'moz_places', 'url_hash') == True:
-		allPlaces = getAllEntries(cur = curToUpdate, SQL = 'SELECT * from main.moz_places where url_hash = 0', 
-								  dictSchema = 'entry[0]: list(entry)', blockSize = 100)
+		allPlaces = getAllEntries(cur = curToUpdate, SQL = 'SELECT * from main.moz_places where url_hash = 0', dictSchema = [0, 'list'], blockSize = 100)
 
 		placesToUpdate = []
 
@@ -239,12 +238,13 @@ def updateIcons_toPages(curToUpdate, dbInsPre55):
 
 	if dbInsPre55 == False:
 		print('\nRemoving redundant moz_icons_to_pages entries')
-		allIcons = getAllEntries(cur = curToUpdate, SQL = 'SELECT * from mainIcons.moz_icons', dictSchema = 'entry[0]: list(entry)')
-		allWPages = getAllEntries(cur = curToUpdate, SQL = 'SELECT * from mainIcons.moz_pages_w_icons', dictSchema = 'entry[0]: list(entry)')
-		allToPages = getAllEntries(cur = curToUpdate, SQL = 'SELECT * from mainIcons.moz_icons_to_pages', dictSchema = 'tuple(entry): ""', blockSize = 1000)
+		allIcons = getAllEntries(cur = curToUpdate, SQL = 'SELECT * from mainIcons.moz_icons', dictSchema = [0, 'list'])
+		allWPages = getAllEntries(cur = curToUpdate, SQL = 'SELECT * from mainIcons.moz_pages_w_icons', dictSchema = [0, 'list'])
 
-		for toPage in allToPages[1].keys(): insLen = len(toPage); break
-		insertSQL = ('?, ' * insLen)[:-2]
+		toPagesInsLen = len(curToUpdate.execute('pragma mainIcons.table_info(moz_icons_to_pages)').fetchall())
+		allToPages = getAllEntries(cur = curToUpdate, SQL = 'SELECT * from mainIcons.moz_icons_to_pages', dictSchema = [tuple(range(toPagesInsLen)), ''], blockSize = 1000)
+
+		insertSQL = ('?, ' * toPagesInsLen)[:-2]
 		insertSQL = f'INSERT or IGNORE into mainIcons.moz_icons_to_pages values({insertSQL})'
 
 		curToUpdate.execute('DELETE from mainIcons.moz_icons_to_pages')
@@ -287,7 +287,7 @@ def updateIcons_toPages(curToUpdate, dbInsPre55):
 
 	elif dbInsPre55 == True:
 		print('Updating columns')
-		allIconExpiries = getAllEntries(cur = curToUpdate, SQL = 'SELECT id, expiration from moz_favicons', dictSchema = 'entry[0]: entry[1]')
+		allIconExpiries = getAllEntries(cur = curToUpdate, SQL = 'SELECT id, expiration from moz_favicons', dictSchema = [0, 1])
 
 		for iconID, expiry in allIconExpiries.items():
 			if expiry == 0: expiry = int((datetime.now().timestamp() + secondsInWeek) * 1000) * 1000

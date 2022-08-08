@@ -7,14 +7,13 @@ import programFiles.globalVars as g
 
 
 def mozInputHistory(curMain):
-	newInputHistory = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_inputhistory', 
-									dictSchema = '(entry[0], entry[1]): entry[2]', blockSize = 1000)
+	newInputHistory = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_inputhistory', dictSchema = [(0, 1), 2], blockSize = 1000)
 
 	if len(newInputHistory) == 0: return
 	print('*moz_inputhistory*')
 	curMain.execute('begin')
 	
-	newPlaceIDs_GUIDs = getAllEntries(cur = curMain, SQL = 'SELECT id, guid from dbExt.moz_places', dictSchema = 'entry[0]: entry[1]')
+	newPlaceIDs_GUIDs = getAllEntries(cur = curMain, SQL = 'SELECT id, guid from dbExt.moz_places', dictSchema = [0, 1])
 	oldPlaceGUIDs_IDs = g.oldEntries.get('moz_places')
 
 	for blockNum, blockData in newInputHistory.items():
@@ -77,7 +76,7 @@ def mozInputHistory(curMain):
 
 
 def mozKeywords(curMain):
-	newKeywords = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_keywords', dictSchema = 'entry[0]: list(entry)')
+	newKeywords = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_keywords', dictSchema = [0, 'list'])
 	if len(newKeywords) == 0: return
 	
 	print('*moz_keywords*')
@@ -85,8 +84,8 @@ def mozKeywords(curMain):
 	keywordInsLen = len(curMain.execute('pragma main.table_info(moz_keywords)').fetchall())
 	keywordExtLen = len(curMain.execute('pragma dbExt.table_info(moz_keywords)').fetchall())
 
-	oldKeywords = getAllEntries(cur = curMain, SQL = 'SELECT keyword from main.moz_keywords', dictSchema = 'entry[0]: ""')
-	oldKeysPost = getAllEntries(cur = curMain, SQL = 'SELECT keyword, post_data from main.moz_keywords', dictSchema = r'(entry[0], entry[1]): ""')
+	oldKeywords = getAllEntries(cur = curMain, SQL = 'SELECT keyword from main.moz_keywords', dictSchema = [0, ''])
+	oldKeysPost = getAllEntries(cur = curMain, SQL = 'SELECT keyword, post_data from main.moz_keywords', dictSchema = [(0, 1), ''])
 
 	# Default value for each column
 	postData = None
@@ -94,7 +93,7 @@ def mozKeywords(curMain):
 	loopDetails = {'tableName': 'main.moz_keywords', 'defaultValues': [postData],
 				   'oldEntries': {'entries': oldKeywords},
 				   'newEntries': {'entries': newKeywords},
-				   'duplicateExec': 'if entry[1] in oldEntries.keys(): continue'}
+				   'duplicateCols': 1}
 
 	newKeywordsEdited = {}
 	if keywordInsLen == 4:

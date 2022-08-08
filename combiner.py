@@ -12,9 +12,9 @@ from programFiles.combinerFunctions.favicons import mozFavicons
 from programFiles.combinerFunctions.annos import annotations
 
 from programFiles.combinerFunctions.Supplementary.updateEntries import updateFrecency, updateVisit_foreignCounts, updatePlaceURLHashes, updateIcons_toPages
-from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkPre55, columnPresent, removeReorderTableColumns, allOldEntriesGet
+from programFiles.combinerFunctions.Supplementary.sqlFunctions import getAllEntries, checkPre55, columnPresent, removeReorderTableColumns
+from programFiles.combinerFunctions.Supplementary.getModifyValues import faviconsFiles, allOldEntriesGet
 from programFiles.combinerFunctions.Supplementary.createBlankDBs import createBlankFaviconsDB
-from programFiles.combinerFunctions.Supplementary.getModifyValues import faviconsFiles
 
 
 def combiner():
@@ -83,7 +83,7 @@ def combiner():
 
 	# Frecency settings
 	updateFrecSetting = g.combinerConfig.getint('History Combiner', 'Update frecency')
-	if updateFrecSetting == 1: oldPlaceGUIDs = getAllEntries(cur = curMain, SQL = 'SELECT guid from main.moz_places', dictSchema = 'entry[0]: ""')
+	if updateFrecSetting == 1: oldPlaceGUIDs = getAllEntries(cur = curMain, SQL = 'SELECT guid from main.moz_places', dictSchema = [0, ''])
 
 	# This seems to commit everything properly. Autocheckpoint increment is every 1 entry, instead of 1000.
 	# And it's set to Truncate rather than Passive to make sure it all gets properly committed and has exclusive access to do so.

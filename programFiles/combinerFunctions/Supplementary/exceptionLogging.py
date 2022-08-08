@@ -85,11 +85,11 @@ def insertExceptionLog(items, checkState):
 
 	if table != 'moz_inputhistory':
 		oldEntryPK = newRow[0]
-		oldEntries = getAllEntries(cur = curMain, SQL = sql, dictSchema = 'entry[0]: list(entry)')
+		oldEntries = getAllEntries(cur = curMain, SQL = sql, dictSchema = [0, 'list'])
 		
 	elif table == 'moz_inputhistory':
 		oldEntryPK = newRow[:2]
-		oldEntries = getAllEntries(cur = curMain, SQL = sql, dictSchema = '(entry[0], entry[1]): list(entry)')
+		oldEntries = getAllEntries(cur = curMain, SQL = sql, dictSchema = [(0, 1), 'list'])
 
 	conflict = list(curMain.execute(conflictSQL, paramValues).fetchone())
 

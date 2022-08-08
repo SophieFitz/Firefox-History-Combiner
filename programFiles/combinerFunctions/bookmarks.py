@@ -106,9 +106,9 @@ def mozBookmarks(curMain):
 	curInsNewID = getNewID(curMain, 'main.moz_bookmarks')
 
 	oldPlaces = g.oldEntries.get('moz_places')
-	newPlaces = getAllEntries(cur = curMain, SQL = 'SELECT id, guid from dbExt.moz_places', dictSchema = 'entry[0]: entry[1]')
+	newPlaces = getAllEntries(cur = curMain, SQL = 'SELECT id, guid from dbExt.moz_places', dictSchema = [0, 1])
 
-	newBookmarks = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_bookmarks order by parent asc, position asc', dictSchema = 'entry[0]: list(entry)')
+	newBookmarks = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_bookmarks order by parent asc, position asc', dictSchema = [0, 'list'])
 	newBookmarksEdited = {}
 	newBookmarkGUIDs = {}
 	newBookmarkIDs = {}
@@ -279,7 +279,7 @@ def mozBookmarks(curMain):
 	foldersAbove = g.combinerConfig.getint('History Combiner', 'Folders above')
 	if foldersAbove == 2:
 		newPos = 0
-		allBookmarks = getAllEntries(cur = curMain, SQL = foldersMenuPosSQL, dictSchema = 'entry[0]: ""')
+		allBookmarks = getAllEntries(cur = curMain, SQL = foldersMenuPosSQL, dictSchema = [0, ''])
 		for bkID in allBookmarks.keys():
 			curMain.execute('UPDATE moz_bookmarks set position = ? where id = ?', (newPos, bkID))
 			newPos += 1
@@ -299,12 +299,12 @@ def deldBookmarks(curMain):
 
 	# If 'moz_bookmarks_deleted' exists
 	if deldInsExists == True and deldExtExists == True:
-		newDeld = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_bookmarks_deleted', dictSchema = 'entry[0]: list(entry)')
+		newDeld = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_bookmarks_deleted', dictSchema = [0, 'list'])
 		if len(newDeld) == 0: return
 
 		print('*moz_bookmarks_deleted*')
 		curMain.execute('begin')
-		oldDeld = getAllEntries(cur = curMain, SQL = 'SELECT guid from main.moz_bookmarks_deleted', dictSchema = 'entry[0]: ""')
+		oldDeld = getAllEntries(cur = curMain, SQL = 'SELECT guid from main.moz_bookmarks_deleted', dictSchema = [0, ''])
 
 		for deldBookmark in newDeld.values():
 			if deldBookmark[0] in oldDeld.keys(): continue # If for some reason it already exists

@@ -28,8 +28,8 @@ def mozHosts_Origins(curMain):
 
 		loopDetails = {'tableName': 'main.moz_hosts', 'dbExtName': 'dbExt', 'defaultValues': [typed, prefix],
 					   'oldEntries': {'tables': ['moz_hosts']},
-					   'newEntries': {'SQL': 'SELECT * from dbExt.moz_hosts', 'schema': 'entry[0]: list(entry)', 'blockSize': 1000},
-					   'duplicateExec': 'if entry[1] in oldEntries.keys(): continue'}
+					   'newEntries': {'SQL': 'SELECT * from dbExt.moz_hosts', 'schema': [0, 'list'], 'blockSize': 1000},
+					   'duplicateCols': 1}
 
 		combineLoops(curMain, loopDetails)
 
@@ -37,8 +37,7 @@ def mozHosts_Origins(curMain):
 	# If we're dealing with moz_origins in DB Extract and moz_hosts in DB Insert, then moz_origins needs converting to moz_hosts
 	elif dbExtPost62 == True and dbInsPre12 == False:
 		print('*moz_origins* ---> *moz_hosts*')
-		newOrigins = getAllEntries(cur = curMain, SQL = 'SELECT id, host, frecency, prefix from dbExt.moz_origins order by prefix desc', 
-								   dictSchema = 'entry[1]: list(entry)')
+		newOrigins = getAllEntries(cur = curMain, SQL = 'SELECT id, host, frecency, prefix from dbExt.moz_origins order by prefix desc', dictSchema = [1, 'list'])
 
 		oldHostNames = g.oldEntries.get('moz_hosts')
 
@@ -82,11 +81,11 @@ def mozHosts_Origins(curMain):
 
 		loopDetails = {'tableName': 'main.moz_origins', 'dbExtName': 'dbExt', 'defaultValues': [],
 					   'oldEntries': {'tables': ['moz_origins']},
-					   'newEntries': {'SQL': 'SELECT * from dbExt.moz_origins', 'schema': 'entry[0]: list(entry)', 'blockSize': 1000}}
+					   'newEntries': {'SQL': 'SELECT * from dbExt.moz_origins', 'schema': [0, 'list'], 'blockSize': 1000}}
 
 		# 'moz_origins' added more 'prefix' values, meaning that there can be 2 or more of the same 'host' name with different 'prefix' values.
 		# Therefore it is necessary to check against both columns for duplicates.
-		loopDetails.update({'duplicateExec': 'if (entry[1], entry[2]) in oldEntries.keys(): continue'})
+		loopDetails.update({'duplicateCols': (1, 2)})
 		combineLoops(curMain, loopDetails)
 
 
@@ -101,6 +100,6 @@ def mozHosts_Origins(curMain):
 		loopDetails = {'tableName': 'main.moz_origins', 'dbExtName': 'dbExt', 'defaultValues': [],
 					   'oldEntries': {'tables': ['moz_origins']},
 					   'newEntries': {'entries': placesForOrigins},
-					   'duplicateExec': 'if tuple(entry[1:3]) in oldEntries.keys(): continue'}
+					   'duplicateCols': (1, 2)}
 
 		combineLoops(curMain, loopDetails)

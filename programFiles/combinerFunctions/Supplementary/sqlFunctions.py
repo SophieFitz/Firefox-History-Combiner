@@ -2,6 +2,140 @@ from programFiles.guiClasses.misc import checkStopPressed
 import programFiles.globalVars as g
 import sqlite3
 
+def add_UpdateDictEntries(entriesOrig, entriesToUpd, ds):
+	# ds = dictSchema
+	i = 1
+
+	# Remove duplicate entries as dicts overwrite old duplicates with new ones rather than skipping the new ones.
+	if type(ds[0]) is int:
+		if ds[1] == 'list':
+			for entry in entriesOrig:
+				if entry[ds[0]] in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entry[ds[0]]: list(entry)})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+		elif ds[1] == 'tuple':
+			for entry in entriesOrig:
+				if entry[ds[0]] in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entry[ds[0]]: tuple(entry)})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+		elif ds[1] == '':
+			for entry in entriesOrig:
+				if entry[ds[0]] in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entry[ds[0]]: ''})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+		elif type(ds[1]) is int:
+			for entry in entriesOrig:
+				if entry[ds[0]] in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entry[ds[0]]: entry[ds[1]]})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+		elif type(ds[1]) is tuple:
+			for entry in entriesOrig:
+				if entry[ds[0]] in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entry[ds[0]]: tuple([entry[ds[1][i]] for i in range(len(ds[1]))])})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+		elif type(ds[1]) is list:
+			for entry in entriesOrig:
+				if entry[ds[0]] in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entry[ds[0]]: [entry[ds[1][i]] for i in range(len(ds[1]))]})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+	elif type(ds[0]) is tuple:
+		if ds[1] == 'list':
+			for entry in entriesOrig:
+				entryKey = tuple([entry[ds[0][i]] for i in range(len(ds[0]))])
+				if entryKey in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entryKey: list(entry)})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+		elif ds[1] == 'tuple':
+			for entry in entriesOrig:
+				entryKey = tuple([entry[ds[0][i]] for i in range(len(ds[0]))])
+				if entryKey in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entryKey: tuple(entry)})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+		elif ds[1] == '':
+			for entry in entriesOrig:
+				entryKey = tuple([entry[ds[0][i]] for i in range(len(ds[0]))])
+				if entryKey in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entryKey: ''})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+		elif type(ds[1]) is int:
+			for entry in entriesOrig:
+				entryKey = tuple([entry[ds[0][i]] for i in range(len(ds[0]))])
+				if entryKey in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entryKey: entry[ds[1]]})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+		elif type(ds[1]) is tuple:
+			for entry in entriesOrig:
+				entryKey = tuple([entry[ds[0][i]] for i in range(len(ds[0]))])
+				if entryKey in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entryKey: tuple([entry[ds[1][i]] for i in range(len(ds[1]))])})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+		elif type(ds[1]) is list:
+			for entry in entriesOrig:
+				entryKey = tuple([entry[ds[0][i]] for i in range(len(ds[0]))])
+				if entryKey in entriesToUpd.keys(): continue
+
+				entriesToUpd.update({entryKey: [entry[ds[1][i]] for i in range(len(ds[1]))]})
+
+				i += 1
+				if i % 1000 == 0:
+					checkStopPressed()
+
+	return entriesToUpd
 
 def getAllEntries(**args):
 	cur = args.get('cur')
@@ -12,42 +146,30 @@ def getAllEntries(**args):
 
 	# Get new entries from DB if cur is not None and entries is None
 	# If entries have not been passed in, get new entries. The only time they are passed in is when they need converting to blocks.
-	if cur is not None:
-		entries = {}
+	if cur:
 		entriesGet = cur.execute(SQL).fetchall()
-		mainKeyCol = dictSchema.split(':')[0]
 
 		# If there are no entries in DB insert, get columns manually? (maybe just get them this way anyway and don't bother with sqlite3.Row?)
 		# colNames = entriesGet[0].keys()
 
+		entries = add_UpdateDictEntries(entriesGet, {}, dictSchema)
 
-		entriesExec = ( 'i = 1\n'
-						'for entry in entriesGet:\n\t'
-							# Remove duplicate entries as dicts overwrite old duplicates with new ones rather than skipping the new ones.
-						   'if ' + mainKeyCol + 'in entries.keys(): continue\n\t'
-					       'entries.update({' + dictSchema + '})\n\t'
-					       'i += 1\n\t'
-					       'if i % 1000 == 0:\n\t\t' # Check for stop pressed after every 1000 entries to ensure Stop button's responsiveness.
-							  'checkStopPressed()\n\t\t')
-
-		exec(entriesExec)
 
 	# Convert entries to blocks if blockSize is not None.
-	if blockSize is not None:
+	if blockSize:
 		entriesAsBlocks = {}
-		blocksExec = ('i = 1\n'
-					  'block = 1\n'
-					  'for key, entry in entries.items():\n\t'
-						  'if entriesAsBlocks.get(block) == None: entriesAsBlocks.update({block: {}})\n\t'
-						   
-						  'entriesAsBlocks[block].update({key: entry})\n\t'
-						  'i += 1\n\t'
-						   
-						  'if i % blockSize == 0:\n\t\t' # Move on to next block
-							  'checkStopPressed()\n\t\t'
-							  'block += 1')
 
-		exec(blocksExec)
+		i = 1
+		block = 1
+		for key, entry in entries.items():
+			if entriesAsBlocks.get(block) is None: entriesAsBlocks.update({block: {}})
+			entriesAsBlocks[block].update({key: entry})
+			i += 1
+
+			if i % blockSize == 0:# Move on to next block
+				checkStopPressed()
+				block += 1
+
 		entries = entriesAsBlocks
 
 	return entries
@@ -59,14 +181,20 @@ def blocksToNormal(entries):
 
 	return entriesNormalised
 
-def checkUTF8(cur, origSQL, dictSchema, colsToCheck, *blockSize):
+def checkUTF8(**args):
 	# This function takes a dict of entries without a specified column(s) and combines it
 	# with a dict that has the column(s) but is set to ignore all non-utf-8 encodable characters.
 	# If the entry was ignored then its value is reset to default.
 
 	# May need to adjust function if the primary key isn't entry[0]...
 
-	
+	cur = args.get('cur')
+	origSQL = args.get('SQL')
+	dictSchema = args.get('dictSchema')
+	colsToCheck = args.get('colsToCheck')
+	blockSize = args.get('blockSize')
+
+
 	def insertCol(schema, insCol):
 		schema.insert(index, insCol)
 
@@ -114,18 +242,19 @@ def checkUTF8(cur, origSQL, dictSchema, colsToCheck, *blockSize):
 		for entry in colEntries.values():
 			mainEntries[entry[0]].insert(index, entry[index])
 
-		for entry in skippedEntries.values():
 		# If the entry was skipped because of invalid UTF-8 encoding, populate it with its default value instead.
+		for entry in skippedEntries.values():
 			entry[index] = defValue
-			exec('mainEntries.update({' + dictSchema + '})')
+
+		mainEntries = add_UpdateDictEntries(skippedEntries.values(), mainEntries, dictSchema)
 
 
 	g.dbMain.text_factory = str
 	tempCur.close()
 
 	if blockSize:
-		mainEntries = getAllEntries(entries = mainEntries, blockSize = blockSize[0])
-	
+		mainEntries = getAllEntries(entries = mainEntries, blockSize = blockSize)
+
 	return mainEntries
 
 def getNewID(cur, table):
@@ -198,13 +327,13 @@ def removeReorderTableColumns(cur, dbName, tableName, columns):
 	colsToRemove = columns.get('remove')
 	colsToReorder = columns.get('reorder')
 
-	if colsToRemove is not None:
+	if colsToRemove:
 		for col in colsToRemove:
 			createTableSQL = createTableSQL.replace(col, '')
 
 		cols = [col[1] for col in colsGet if col[1] not in colsToRemove]
 
-	if colsToReorder is not None:
+	if colsToReorder:
 		# If I'm doing multiple columns at once, need to factor-in the altered numbers of the columns.
 		if cols is None: cols = [col[1] for col in colsGet]
 		createTableCols = createTableSQL.split('(', 1)[1].split(',')
@@ -245,50 +374,6 @@ def removeReorderTableColumns(cur, dbName, tableName, columns):
 	cur.execute('pragma foreign_keys=on')
 	cur.connection.commit()
 
-def allOldEntriesGet(curMain):
-	print('\nGetting all old entries in preparation for combining')
-
-	# Reset to empty
-	g.oldEntries = {}
-
-	pre12 = checkPre12(curMain, 'main')
-	pre55 = checkPre55(curMain, 'main')
-	post62 = checkPost62(curMain, 'main')
-	
-	hosts_Origins = {}
-	bookmarksGUID = columnPresent(curMain, 'main', 'moz_bookmarks', 'guid')
-
-	tables_sqlSchema = {'moz_places':               ['SELECT guid, last_visit_date, id from main.moz_places',       'entry[0]: (entry[1], entry[2])',
-													{'description': [None]}], 
-
-						'moz_historyvisits':        ['SELECT visit_date from main.moz_historyvisits',               'entry[0]: ""'],
-						'moz_annos':                ['SELECT place_id, anno_attribute_id from main.moz_annos',      'tuple(entry): ""'],
-						'moz_items_annos':          ['SELECT item_id, anno_attribute_id from main.moz_items_annos', 'tuple(entry): ""']}
-
-	if bookmarksGUID == True: 
-		tables_sqlSchema.update({'moz_bookmarks':   ['SELECT guid from main.moz_bookmarks', 						'entry[0]: ""']})
-
-	if pre12 == False:
-		hosts_Origins = {'moz_hosts':               ['SELECT host from main.moz_hosts',                             'entry[0]: ""']}
-
-	elif post62 == True:
-		hosts_Origins = {'moz_origins':             ['SELECT prefix, host, id from main.moz_origins',              '(entry[0], entry[1]): entry[2]']}
-
-	if pre55 == True:
-		tables_sqlSchema = {'moz_favicons':         ['SELECT url, id from main.moz_favicons',                       'entry[0]: entry[1]'],
-													**hosts_Origins, **tables_sqlSchema}
-
-	elif pre55 == False:
-		tables_sqlSchema = {'moz_icons':            ['SELECT icon_url, width, id from mainIcons.moz_icons',        '(entry[0], entry[1]): entry[2]'],
-							'newlyCombinedIcons':   ['SELECT icon_url, id from mainIcons.moz_icons',                'entry[0]: entry[1]'],
-							'moz_pages_w_icons':    ['SELECT page_url, id from mainIcons.moz_pages_w_icons',        'entry[0]: entry[1]'],
-													**hosts_Origins, **tables_sqlSchema}
-
-	for table, info in tables_sqlSchema.items():
-		if len(info) == 2: entries = getAllEntries(cur = curMain, SQL = info[0], dictSchema = info[1])
-		elif len(info) == 3: entries = checkUTF8(curMain, info[0], info[1], info[2]) # Check and get utf-8 encodable entries
-		
-		g.oldEntries.update({table: entries})
 
 def checkPre12(cur, dbName):
 	originsExist = tablePresent(cur, dbName, 'moz_origins')
