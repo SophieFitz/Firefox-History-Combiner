@@ -1,4 +1,10 @@
 # Firefox-History-Combiner
+
+### Unfortunately, this project is in stasis for the time being. 
+***I have ongoing personal matters to deal with and do not have the time to dedicate to this project.*** <br />
+***I hope to be able to continue in the future. I will update if / when things change.*** <br />
+<br />
+<br />
 A GUI tool to combine multiple Firefox history databases together! <br />
 Most crucially, this program can combine DBs from (or indeed into) ***Firefox 3.0 onwards.*** <br />
 This means that any Firefox history DB can be ***upgraded*** or ***downgraded*** to whatever version of Firefox you are using! <br />
