@@ -9,6 +9,7 @@ class combinerWorker(QObject):
 	finished = pyqtSignal()
 	backup = pyqtSignal()
 	error = pyqtSignal(tuple)
+	updateProgBar = pyqtSignal(int)
 
 	def __init__(worker):
 		super().__init__()
@@ -25,6 +26,8 @@ class combinerWorker(QObject):
 		# g.backupSig = worker.backup
 		# g.errorSig = worker.error
 
+		g.updateProgBar = worker.updateProgBar
+
 
 		try:
 			# Ignore all warnings, such as "Image was not the expected size".
@@ -39,6 +42,7 @@ class combinerWorker(QObject):
 			for c in customExceptionTypes:
 				if c in traceback.format_exc(): custom = True
 
+			# If the user did press the Stop button, then no error dialog is displayed.
 			if type(errorMessage) is not g.combiningStopped:
 				if custom is False: errorMessage = (traceback.format_exc(),) # Make a tuple so emit doesn't throw an error
 				elif custom is True: errorMessage = errorMessage.args

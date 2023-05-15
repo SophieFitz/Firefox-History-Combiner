@@ -1,67 +1,66 @@
-from PyQt5.QtWidgets import QWidget, QPushButton, QFileDialog, QDialog, QListWidget, QAbstractItemView,\
-							QHBoxLayout, QVBoxLayout, QFrame, QLabel, QRadioButton, QListWidgetItem, QLineEdit,\
-							QDesktopWidget
-
 from PyQt5.QtCore import Qt, QSize, QItemSelectionModel
+import PyQt5.QtWidgets as QtW
 from PyQt5.QtGui import QFont
 from pathlib import Path
 import ast
 
+from programFiles.guiClasses.warning_info import createWarning_InfoDialog
 from programFiles.guiClasses.misc import confirmChanges, cancelChanges
 from programFiles.guiClasses.widgets import createCheckbox
-from programFiles.guiClasses.warning_info import createWarning_InfoDialog
+from programFiles.otherFunctions import checkFolderHasDBs
 
 import programFiles.globalVars as g
 
-class createDBSelectionDialog(QDialog):
+class createDBSelectionDialog(QtW.QDialog):
 	def __init__(dialog, combineBtn):
 		super().__init__()
 
 		dialog.combineBtn = combineBtn
+		dialog.minHeight = 243
 
-		dialog.setMinimumSize(450, 243)
+		dialog.setMinimumSize(450, dialog.minHeight)
 		dialog.setWindowTitle('Database folder selection')
 		dialog.setWindowFlags(Qt.WindowCloseButtonHint)
 
 		# dialog.recursiveCheckbox = createCheckbox('Look in all subfolders (recursive processing)', 'History Combiner', 'Recursive')
 		# dialog.recursiveCheckbox.setToolTip('Doesn\'t apply to Firefox Profiles (i.e. \\AppData\\Roaming\\Mozilla\\Firefox\\Profiles)')
 
-		dialog.selectionBox = QListWidget()
+		dialog.selectionBox = QtW.QListWidget()
 		dialog.selectionBox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 		dialog.selectionBox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-		dialog.selectionBox.setSelectionMode(QAbstractItemView.ExtendedSelection) # Enable multi-selection!
+		dialog.selectionBox.setSelectionMode(QtW.QAbstractItemView.ExtendedSelection) # Enable multi-selection!
 		dialog.selectionBox.setMinimumWidth(220)
 		
 		dialog.selectionBox.keyPressEvent = dialog.selectionBoxEnterPressed
 		dialog.selectionBox.doubleClicked.connect(lambda: dialog.modifyDir())
 
-		addBtn = QPushButton('Add')
+		addBtn = QtW.QPushButton('Add')
 		addBtn.clicked.connect(lambda: dialog.addDir())
 
-		modifyBtn = QPushButton('Modify')
+		modifyBtn = QtW.QPushButton('Modify')
 		modifyBtn.clicked.connect(lambda: dialog.modifyDir())
 
-		removeBtn = QPushButton('Remove')
+		removeBtn = QtW.QPushButton('Remove')
 		removeBtn.clicked.connect(lambda: dialog.removeDir())
 
 
-		dialog.okBtn = QPushButton('OK')
+		dialog.okBtn = QtW.QPushButton('OK')
 		dialog.okBtn.clicked.connect(lambda: dialog.checkOK())
 		dialog.okBtn.setDefault(True)
 		dialog.okBtn.setFocus()
 
-		dialog.cancelBtn = QPushButton('Cancel')
-		dialog.cancelBtn.clicked.connect(lambda: cancelChanges(dialog))
+		dialog.cancelBtn = QtW.QPushButton('Cancel')
+		dialog.cancelBtn.clicked.connect(lambda: cancelChanges(dialog = dialog))
 		dialog.cancelBtn.keyReleaseEvent = dialog.cancelKeyRelease
 		
-		mainBox = QVBoxLayout(dialog)
+		mainBox = QtW.QVBoxLayout(dialog)
 
 		# Selection box and buttons
-		selectHBox = QHBoxLayout()
+		selectHBox = QtW.QHBoxLayout()
 		selectHBox.addSpacing(8)
 		selectHBox.addWidget(dialog.selectionBox)
 		
-		selectButtonsBox = QVBoxLayout()
+		selectButtonsBox = QtW.QVBoxLayout()
 		selectButtonsBox.addSpacing(3)
 		selectButtonsBox.addWidget(addBtn)
 		selectButtonsBox.addWidget(modifyBtn)
@@ -73,7 +72,7 @@ class createDBSelectionDialog(QDialog):
 		mainBox.addSpacing(5)
 
 		# Ok + Cancel buttons
-		mainButtonsBox = QHBoxLayout()
+		mainButtonsBox = QtW.QHBoxLayout()
 		# mainButtonsBox.addSpacing(9)
 		# mainButtonsBox.addWidget(dialog.recursiveCheckbox)
 		mainButtonsBox.addStretch(1)
@@ -96,72 +95,111 @@ class createDBSelectionDialog(QDialog):
 		elif keyEvent.key() in (Qt.Key_Delete, Qt.Key_Backspace): dialog.removeDir()
 		else: super().keyPressEvent(keyEvent)
 
-	def dirDialog(dialog, *primaryDB):
-		# The directory will always default to the parent of the last one the user selected. 
+	def dirDialog(dialog, dirType, *primaryDB):
+
+		# The directory will always default to the last one the user selected.
 		# If the user has yet to choose any directories, the default Firefox Profiles' directory is used!
 		lastSelectedDir = g.combinerConfig.get('GUI', 'Folders - Last selected directory')
-		if   len(lastSelectedDir) == 0: startingDir = Path.home().joinpath('AppData\\Roaming\\Mozilla\\Firefox\\Profiles')
-		elif len(lastSelectedDir) > 0: startingDir = Path(lastSelectedDir)#.parent
+		if   dialog.primaryDBFolder == Path.home().joinpath('AppData\\Roaming\\Mozilla\\Firefox\\Profiles'): startingDir = dialog.primaryDBFolder
+		elif dirType == 'Add': startingDir = lastSelectedDir
+		elif dirType == 'Modify':
+			if primaryDB: startingDir = dialog.primaryDBFolder
+			elif not primaryDB:
+				selectedRows = dialog.selectionBox.selectionModel().selectedRows()
+				startingDir = dialog.selectionBox.item(selectedRows[0].row()).text()
 
-		if not primaryDB:
-			dir_ = QFileDialog.getExistingDirectory(None, 'Where are the other DBs located?', str(startingDir), QFileDialog.ShowDirsOnly)
-			dir_ = dir_.replace('/', '\\')
-			
-			dir_ = dialog.processDuplicates(dir_)
+		if primaryDB: title = 'Where is the Primary DB located?'
+		elif not primaryDB: title = 'Where are the other DBs located?'
 
-		elif primaryDB:
-			dir_ = QFileDialog.getExistingDirectory(None, 'Where is the Primary DB located?', str(startingDir))
-			dir_ = dir_.replace('/', '\\')
+		dir_ = QtW.QFileDialog.getExistingDirectory(None, title, str(startingDir))
+		dir_ = dir_.replace('/', '\\')
+
+		if primaryDB: dir_ = dialog.processFolders(dir_ = dir_, dirType = dirType, primaryDB = primaryDB)
+		elif not primaryDB: dir_ = dialog.processFolders(dir_ = dir_, dirType = dirType)
 
 		return dir_
 
-	def processDuplicates(dialog, dir_):
+	def processFolders(dialog, **args):
+		dir_ = args.get('dir_')
+		dirType = args.get('dirType')
+		primaryDB = args.get('primaryDB')
+
 		message = ['', 'Please select a different folder.']
-		duplicateFolder = ''
+		forbiddenFolderName = ''
 		title = ''
 		height = 0
 		width = 0
 
-		if dir_ in dialog.dbFolders:
-			message.insert(0, 'The folder you\'ve selected is already in this list.')
-			duplicateFolder = dialog.dbFolders
-			title = 'Duplicate entry'
-			width = -10
+		if primaryDB:
+			if dir_ in dialog.dbFolders:
+				message = ['This folder is already in <b><i>Other DB folders</i></b>. The Primary DB must be in a separate folder.']
+				forbiddenFolderName = dialog.dbFolders
+				title = 'Primary DB folder'
+				width = 10
 
-		elif dir_ == dialog.primaryDBFolder:
-			message.insert(0, 'This folder is the <b>Primary DB folder</b> location.')
-			message.insert(1, 'This cannot be used for any other purpose.')
-			duplicateFolder = dialog.primaryDBFolder
-			title = 'Primary DB folder'
-			width = 35
+			elif Path(dir_).joinpath('places.sqlite').is_file() == False:
+				message = ['The <b><i>places.sqlite</i></b> file is either missing, or its name is incorrect.',
+						   '',
+						   'Please either:',
+						   '     - Copy the <b><i>places.sqlite</i></b> (and <b><i>favicons.sqlite</i></b> if relevant) into the folder',
+						   '     - Appropriately rename the files, or',
+						   '     - Select a different folder']
 
-		elif dir_ == str(Path.cwd()):
-			message.insert(0, 'The <b><i>current working directory</b></i> of the program is')
-			message.insert(1, 'reserved for internal functions and cannot be used.')
-			duplicateFolder = str(Path.cwd())
-			title = 'Current working directory'
-			width = 25
+				forbiddenFolderName = dir_
+				title = 'places.sqlite file is missing or incorrrectly named'
 
-		elif dialog.primaryDBFolder in dir_:
-			message.insert(0, 'This is a subsidiary of the <b>Primary DB folder</b>.')
-			duplicateFolder = dialog.primaryDBFolder
-			title = 'Subsidiary of Primary DB folder'
-			width = 10
+			elif dir_ == str(Path.cwd()):
+				message.insert(0, 'The programs\'s root directory (i.e. the place that <i>Firefox history combiner.exe</i> is located)')
+				message.insert(1, 'is reserved for internal functions and cannot be used as the <b>Primary DB folder</b>.')
+				forbiddenFolderName = dir_
+				title = 'Root directory cannot be used'
+				width = -20
 
-		# Process duplicates
-		if duplicateFolder != '':
-			if dir_ in duplicateFolder or duplicateFolder in dir_:
+
+		elif not primaryDB:
+			if dir_ in dialog.dbFolders and dirType == 'Add': # Doesn't matter if the user modifies an entry to be the same.
+				message.insert(0, 'The folder you\'ve selected is already in this list.')
+				forbiddenFolderName = dialog.dbFolders
+				title = 'Duplicate entry'
+				width = -10
+
+			elif dir_ == dialog.primaryDBFolder:
+				message.insert(0, 'This folder is the <b>Primary DB folder</b> location.')
+				message.insert(1, 'This cannot be used for any other purpose.')
+				forbiddenFolderName = dialog.primaryDBFolder
+				title = 'Primary DB folder'
+				width = 35
+
+			elif dir_ == str(Path.cwd()):
+				message.insert(0, 'The programs\'s root directory (i.e. the place that <i>Firefox history combiner.exe</i> is located)')
+				message.insert(1, 'is reserved for internal functions and cannot be used.')
+				forbiddenFolderName = dir_
+				title = 'Root directory cannot be used'
+				width = 25
+
+			elif dialog.primaryDBFolder in dir_:
+				message.insert(0, 'This is a subsidiary of the <b>Primary DB folder</b>.')
+				forbiddenFolderName = dialog.primaryDBFolder
+				title = 'Subsidiary of Primary DB folder'
+				width = 10
+
+			elif checkFolderHasDBs(Path(dir_)) == False: pass
+
+		# Process forbidden folders
+		if forbiddenFolderName != '':
+			if dir_ in forbiddenFolderName or forbiddenFolderName in dir_:
 				duplicateDialog = createWarning_InfoDialog(title, message, 'OK', 'Warning')
 				duplicateDialog.width += width
 				duplicateDialog.height += height
 				duplicateDialog.exec_()
 
-				dir_ = dialog.dirDialog()
+				if primaryDB: dir_ = dialog.dirDialog(dirType, primaryDB)
+				elif not primaryDB: dir_ = dialog.dirDialog(dirType)
 
 		return dir_
 
 	def addDir(dialog):
-		dir_ = dialog.dirDialog()
+		dir_ = dialog.dirDialog('Add')
 
 		# Clear the selection and focus the OK button (these are not done automatically).
 		selectedRows = dialog.selectionBox.selectionModel().selectedRows()
@@ -171,7 +209,7 @@ class createDBSelectionDialog(QDialog):
 		
 		if dir_ == '': return # If the user hits 'Cancel', exit the folder-picker dialog.
 
-		dialog.dbFolders.update({dir_: ''})
+		dialog.dbFolders.append(dir_)
 		dialog.fillSelectionBox()
 
 		g.combinerConfig.set('History Combiner', 'DB folders', str(dialog.dbFolders))
@@ -180,8 +218,8 @@ class createDBSelectionDialog(QDialog):
 	def modifyDir(dialog):
 		selectedRows = dialog.selectionBox.selectionModel().selectedRows()
 		if len(selectedRows) == 1:
-			if selectedRows[0].row() == 3: dir_ = dialog.dirDialog(True)
-			else: dir_ = dialog.dirDialog()
+			if selectedRows[0].row() == 3: dir_ = dialog.dirDialog('Modify', True)
+			else: dir_ = dialog.dirDialog('Modify')
 
 			# Clear the selection and focus the OK button (not done automatically).
 			dialog.selectionBox.setCurrentRow(selectedRows[0].row(), QItemSelectionModel.Clear)
@@ -198,10 +236,12 @@ class createDBSelectionDialog(QDialog):
 			if selectedRows[0].row() == 3:
 				dialog.primaryDBFolder = item.text()
 				g.combinerConfig.set('History Combiner', 'Primary DB folder', dialog.primaryDBFolder)
-			
+
 			elif selectedRows[0].row() > 6:
-				dialog.dbFolders.update({item.text(): ''})
-				del dialog.dbFolders[oldText]
+				oldFolderIndex = dialog.dbFolders.index(oldText)
+				del dialog.dbFolders[oldFolderIndex]
+				dialog.dbFolders.insert(oldFolderIndex, dir_)
+
 				g.combinerConfig.set('History Combiner', 'DB folders', str(dialog.dbFolders))
 
 	def removeDir(dialog):
@@ -215,7 +255,8 @@ class createDBSelectionDialog(QDialog):
 				# If selecting multiple entries with Shift+Up/Down or Ctrl+A the index goes too high and so 'item' returns None. No idea why.
 				item = dialog.selectionBox.takeItem(row - 1)
 
-			del dialog.dbFolders[item.text()]
+			itemIndex = dialog.dbFolders.index(item.text())
+			del dialog.dbFolders[itemIndex]
 			del item
 
 		g.combinerConfig.set('History Combiner', 'DB folders', str(dialog.dbFolders))
@@ -230,9 +271,10 @@ class createDBSelectionDialog(QDialog):
 
 		if len(dialog.dbFolders) == 0 and dialog.primaryDBFolder != defaultPrimaryPath:
 			title = 'Add DB folders'
-			message = ['You must add at least <b>one folder</b> containing one or more DBs.']
-			tooltip = 'These can be Firefox Profiles (i.e. from \\AppData\\Roaming\\Mozilla\\Firefox\\Profiles)\n'\
-					  'or a folder of your choosing that has multiple DBs inside.'
+			message = ['You must add at least <b>1 folder</b> containing 1 or more DBs.',
+					   '',
+					   'These can be Firefox Profiles (i.e. from \\AppData\\Roaming\\Mozilla\\Firefox\\Profiles)',
+					   'or a folder of your choosing that has multiple DBs inside.']
 
 		elif len(dialog.dbFolders) > 0 and  dialog.primaryDBFolder == defaultPrimaryPath:
 			title = 'Choose different folder'
@@ -265,7 +307,7 @@ class createDBSelectionDialog(QDialog):
 			 '(i.e. DBs from FF 55.0 and newer), you must rename them to include numbers.',
 			 '',
 			 'Convention (\'places (1).sqlite\', \'places_1.sqlite\' etc.) doesn\'t matter here; But the numbering must be added to the end of the file name, as shown above.',
-			 'Crucially, the convention (and the numbers) must match up between the places.sqlite and favicons.sqlite files. Combining won\'t work otherwise!',
+			 'However, the convention (and the numbers) must match up between the places.sqlite and favicons.sqlite files. Combining won\'t work otherwise!',
 			 'Pre FF 55.0 DBs can be named whatever you like because they have no accompanying favicons.sqlite files.',
 			 '',
 			 'Hint: You can have both types (pre and post FF 55.0 DBs) in the same folder :)',
@@ -275,11 +317,11 @@ class createDBSelectionDialog(QDialog):
 			numberDBsDialog.exec_()
 
 		dialog.combineBtn.setEnabled(True)        
-		confirmChanges(dialog)
+		confirmChanges(dialog = dialog)
 
 	def cancelKeyRelease(dialog, keyEvent):
 		if keyEvent.key() == Qt.Key_Escape: dialog.cancelBtn.click()
-		else: super(QPushButton, dialog.cancelBtn).keyReleaseEvent(keyEvent)
+		else: super(QtW.QPushButton, dialog.cancelBtn).keyReleaseEvent(keyEvent)
 
 	def selectionBoxEnterPressed(dialog, keyEvent):
 		if keyEvent.key() in (Qt.Key_Return, Qt.Key_Enter):
@@ -287,14 +329,14 @@ class createDBSelectionDialog(QDialog):
 			if selectedRows == 0 or selectedRows > 1: dialog.okBtn.click() # If 0 rows or more than 1 row is selected, close the window and save changes.
 			elif selectedRows == 1: dialog.modifyDir() # If 1 row is selected, pressing Enter modifies that directory!!
 
-		else: super(QListWidget, dialog.selectionBox).keyPressEvent(keyEvent)
+		else: super(QtW.QListWidget, dialog.selectionBox).keyPressEvent(keyEvent)
 
 	def fillSelectionBox(dialog):
 		def fillLoop(titlesSeparators, sepPos, sizePos, titlePos_Size):
 			dialog.selectionBox.addItems(titlesSeparators)
 
-			separator = QFrame()
-			separator.setFrameShape(QFrame.HLine)
+			separator = QtW.QFrame()
+			separator.setFrameShape(QtW.QFrame.HLine)
 			dialog.selectionBox.setItemWidget(dialog.selectionBox.item(sepPos), separator)
 
 			dialog.selectionBox.item(sizePos[0]).setSizeHint(QSize(1, 19)) # Title
@@ -319,7 +361,7 @@ class createDBSelectionDialog(QDialog):
 		titleFont.setPointSize(10)
 
 		fillLoop(['                           Primary DB folder', '', '',  dialog.primaryDBFolder],  1, [0, 1, 2], [0, 25])
-		fillLoop(['                            Other DB folders', '', '', *dialog.dbFolders.keys()], 5, [4, 5, 6], [4, 30])
+		fillLoop(['                            Other DB folders', '', '', *dialog.dbFolders], 5, [4, 5, 6], [4, 30])
 
 
 		# Disable titles and separators, not invisible but not enabled!
@@ -340,23 +382,23 @@ class createDBSelectionDialog(QDialog):
 		if g.combinerConfig.getint('GUI', 'Auto-size folder dialog width') == 2:
 			# Get a list of all displays (just to be thorough)
 			widthList = []
-			for display in range(QDesktopWidget().screenCount()):
-				widthList.append(QDesktopWidget().screenGeometry(display).width())
+			for displayNum in range(QtW.QDesktopWidget().screenCount()):
+				widthList.append(QtW.QDesktopWidget().screenGeometry(displayNum).width())
 
 			# Find the smallest width
 			maxWidth = min(widthList)
 
 			# sizeHintForColumn() gets the maximum width of all the rows for the given column.
-			# 150 is the constant. The gap between the right-hand edge of the selection box and the window's right-hand edge.
-			newWidth = dialog.selectionBox.sizeHintForColumn(0) + 150
+			# 140 is the constant. The gap between the right-hand edge of the selection box and the window's right-hand edge.
+			newWidth = dialog.selectionBox.sizeHintForColumn(0) + 140
 
 			# Make sure the new width never exceeds the width of the smallest connected display.
 			if newWidth > maxWidth: newWidth = maxWidth
 			
-			dialog.resize(newWidth, 243)
+			dialog.resize(newWidth, dialog.minHeight)
 
 
 		elif g.combinerConfig.getint('GUI', 'Auto-size folder dialog width') == 0:
-			dialog.resize(450, 243)
+			dialog.resize(450, dialog.minHeight)
 
 		super().exec_()

@@ -1,12 +1,11 @@
-from PyQt5.QtWidgets import QApplication, QPushButton, QDialog, QLabel, QStyle, QHBoxLayout, QVBoxLayout,\
-							QListWidget, QListWidgetItem, QTextEdit, QLineEdit
-
 from PyQt5.QtCore import Qt, QSize, QTimer
+import PyQt5.QtWidgets as QtW
 from PyQt5.QtGui import QFont
+
 from datetime import datetime
 from pathlib import Path
 
-from programFiles.combinerFunctions.Supplementary.exceptionLogging import insertExceptionLog, dictExceptionLog, generalExceptionLog
+from programFiles.combinerFunctions.Supplementary.exceptionLogging import insertExceptionLog, dictExceptionLog, logConnectedDBSchemas
 from programFiles.guiClasses.widgets import createCheckbox
 from programFiles.guiClasses.misc import confirmChanges
 
@@ -14,7 +13,7 @@ import programFiles.globalVars as g
 import webbrowser, re, logging
 
 
-class createWarning_InfoDialog(QDialog):
+class createWarning_InfoDialog(QtW.QDialog):
 	def __init__(dialog, title, message, btnText, imgType, *show):
 		super().__init__()
 
@@ -24,21 +23,21 @@ class createWarning_InfoDialog(QDialog):
 		if show: dialog.show = True
 		dialog.heightComp = 70 # This is height compensation for the minimum size of the message label. It doesn't display how I want it to without this.
 
-		iconLabel = QLabel(dialog)
+		iconLabel = QtW.QLabel(dialog)
 		if imgType == 'Info':
-			dialog.icon = QApplication.style().standardIcon(QStyle.SP_MessageBoxInformation)
+			dialog.icon = QtW.QApplication.style().standardIcon(QtW.QStyle.SP_MessageBoxInformation)
 			iconLabel.move(10, 10)
 			messageLabelOffset = 10
 			dialog.heightComp = 45
 
 		elif imgType == 'Warning':
-			dialog.icon = QApplication.style().standardIcon(QStyle.SP_MessageBoxWarning)
+			dialog.icon = QtW.QApplication.style().standardIcon(QtW.QStyle.SP_MessageBoxWarning)
 			iconLabel.move(10, 10)
 			messageLabelOffset = 12
 			dialog.heightComp = 60
 
 		elif imgType == 'Error':
-			dialog.icon = QApplication.style().standardIcon(QStyle.SP_MessageBoxCritical)
+			dialog.icon = QtW.QApplication.style().standardIcon(QtW.QStyle.SP_MessageBoxCritical)
 			iconLabel.move(13, 15)
 			messageLabelOffset = 10
 			dialog.heightComp = 60
@@ -48,7 +47,7 @@ class createWarning_InfoDialog(QDialog):
 
 		# dialog.setWindowIcon(dialog.icon)
 
-		dialog.messageLabel = QLabel('', dialog)
+		dialog.messageLabel = QtW.QLabel('', dialog)
 		dialog.messageLabel.setStyleSheet('font-size: 13px;')
 		dialog.messageLabel.move(iconLabel.geometry().right() + messageLabelOffset, 13)
 		dialog.messageLabel.setOpenExternalLinks(True)
@@ -57,18 +56,18 @@ class createWarning_InfoDialog(QDialog):
 
 
 		# # OK + Cancel buttons
-		dialog.okBtn = QPushButton(btnText)
+		dialog.okBtn = QtW.QPushButton(btnText)
 
-		dialog.cancelBtn = QPushButton('Cancel')
+		dialog.cancelBtn = QtW.QPushButton('Cancel')
 		dialog.cancelBtn.clicked.connect(lambda: dialog.reject())
 		dialog.cancelBtn.hide()
 
-		dialog.mainButtonsBox = QHBoxLayout()
+		dialog.mainButtonsBox = QtW.QHBoxLayout()
 		dialog.mainButtonsBox.addWidget(dialog.okBtn)
 		dialog.mainButtonsBox.addWidget(dialog.cancelBtn)
 		dialog.mainButtonsBox.insertStretch(0, 1)
 
-		dialog.mainBox = QVBoxLayout(dialog)
+		dialog.mainBox = QtW.QVBoxLayout(dialog)
 		dialog.mainBox.addLayout(dialog.mainButtonsBox)
 		dialog.mainBox.insertStretch(0, 1) # Add margin
 
@@ -78,7 +77,7 @@ class createWarning_InfoDialog(QDialog):
 
 			# Only confirm or revert changes if the 'Don't show this again' checkbox is present.
 			dialog.rejected.connect(lambda: g.combinerConfig.read_file(open('Settings.ini')))
-			dialog.okBtn.clicked.connect(lambda: confirmChanges(dialog))
+			dialog.okBtn.clicked.connect(lambda: confirmChanges(dialog = dialog))
 
 			dialog.mainButtonsBox.insertWidget(0, showAgainCheckbox)
 			dialog.mainButtonsBox.insertSpacing(0, 40)
@@ -164,8 +163,8 @@ class createFaviconsMissingDialog(createWarning_InfoDialog):
 		dialog.cancelBtn.setDefault(True)
 		dialog.cancelBtn.show()
 
-		iconsList = QListWidget()
-		leftMarginBox = QHBoxLayout()
+		iconsList = QtW.QListWidget()
+		leftMarginBox = QtW.QHBoxLayout()
 		leftMarginBox.addSpacing(45)
 		leftMarginBox.addWidget(iconsList)
 		# leftMarginBox.addSpacing(83)
@@ -209,10 +208,10 @@ class createFaviconsMissingDialog(createWarning_InfoDialog):
 
 				for dbName in DBs:
 					dbNumberSuffix = dbName.split('places')[1]
-					label = QLabel(f'<div style="font-size: 13px; text-decoration: line-through; margin-left: 5px"> {dbName}</div>'
+					label = QtW.QLabel(f'<div style="font-size: 13px; text-decoration: line-through; margin-left: 5px"> {dbName}</div>'
 								   f'<div style="font-weight: bold; font-size: 13px; margin-left: 6px">favicons{dbNumberSuffix}')
 					
-					listItem = QListWidgetItem()
+					listItem = QtW.QListWidgetItem()
 					listItem.setSizeHint(QSize(1, 34))
 					iconsList.addItem(listItem)
 					iconsList.setItemWidget(listItem, label)
@@ -239,7 +238,7 @@ class createErrorDialog(createWarning_InfoDialog):
 		dialog.textBox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 		dialog.textBox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 		
-		leftMarginBox = QHBoxLayout()
+		leftMarginBox = QtW.QHBoxLayout()
 		leftMarginBox.addSpacing(4)
 		leftMarginBox.addWidget(dialog.textBox)
 		leftMarginBox.addSpacing(2)
@@ -254,18 +253,18 @@ class createErrorDialog(createWarning_InfoDialog):
 		dialog.width *= 1.2
 		dialog.setMinimumSize(700, 300)
 
-
-		includePersonalInfo = createCheckbox('Include URLs, search terms etc. in the log file (helps with debugging).', 'Debugging', 'Log personal info')
-		includePersonalInfo.setStyleSheet('font-size: 13px')
-		includePersonalInfo.stateChanged.connect(lambda: dialog.formatLogEntry(errorItems, includePersonalInfo.checkState()))
-		
+		show = False
 		if type(errorItems) is str:
-			errorItems = generalExceptionLog(errorItems)
-			dialog.textBox.setText(f'<pre>{errorItems}</pre>')
-			dialog.errorMessage = errorItems
+			errorItems = {'type': 'generalExc', 'errorMessage': errorItems}
 
-		elif type(errorItems) is dict:
-			show = False
+		if errorItems.get('type') == 'generalExc':
+			cBoxName = 'Include table schemas for all attached DBs (helps me debug vague/general errors)'
+			cBoxOption = 'Log table schemas'
+			show = True
+
+		else:
+			cBoxName = 'Include URLs, search terms etc. in the log file (helps with debugging).'
+			cBoxOption = 'Log personal info'
 
 			if errorItems.get('type') == 'dictExc':
 				errorSplit = errorItems.get('errorMessage').split('      ')
@@ -277,18 +276,26 @@ class createErrorDialog(createWarning_InfoDialog):
 			elif errorItems.get('type') == 'insertExc': show = True
 
 
-			dialog.mainButtonsBox.insertWidget(0, includePersonalInfo)
-			dialog.mainButtonsBox.insertSpacing(0, 7)
-			includePersonalInfo.setVisible(show)
-			dialog.formatLogEntry(errorItems, includePersonalInfo.checkState())
+		dialog.includeExtraInfo = createCheckbox(cBoxName, 'Debugging', cBoxOption)
+		dialog.includeExtraInfo.stateChanged.connect(lambda: dialog.formatLogEntry(errorItems, dialog.includeExtraInfo.checkState()))
+		dialog.includeExtraInfo.setStyleSheet('font-size: 13px')
+
+		dialog.mainButtonsBox.insertWidget(0, dialog.includeExtraInfo)
+		dialog.mainButtonsBox.insertSpacing(0, 7)
+
+		dialog.includeExtraInfo.setVisible(show)
+		dialog.formatLogEntry(errorItems, dialog.includeExtraInfo.checkState())
 
 
 		dialog.finished.connect(dialog.closed)
 		dialog.exec_('Resizable')
 
 	def closed(dialog):
-		combinerLogger = logging.getLogger('Combiner')
+		# Reset the option to its default (disabled). It's optional for a reason!
+		# If the checkbox state is saved and it defaults to always including the table schemas, it clogs the log file super quickly.
+		if dialog.includeExtraInfo.option == 'Log table schemas': g.combinerConfig.set('Debugging', 'Log table schemas', '0')
 
+		combinerLogger = logging.getLogger('Combiner')
 		now = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
 		combinerLogger.error(f'\n\nTimestamp: {now}\n{dialog.errorMessage}')
 
@@ -299,6 +306,7 @@ class createErrorDialog(createWarning_InfoDialog):
 
 		if errorItems.get('type') == 'insertExc': dialog.errorMessage = insertExceptionLog(errorItems, checkState)
 		elif errorItems.get('type') == 'dictExc': dialog.errorMessage = dictExceptionLog(errorItems, checkState)
+		elif errorItems.get('type') == 'generalExc': dialog.errorMessage = logConnectedDBSchemas(errorItems.get('errorMessage'), checkState)
 
 		dialog.textBox.clear()
 		dialog.textBox.setText(f'<pre>{dialog.errorMessage}</pre>')
@@ -317,16 +325,16 @@ class createBackupDialog(createWarning_InfoDialog):
 		super().__init__('Completed DB folder name', message, 'OK', 'Info')
 		dialog.timer = QTimer()
 
-		dialog.textInput = QLineEdit()
+		dialog.textInput = QtW.QLineEdit()
 		dialog.textInput.textEdited.connect(dialog.displayTime)
 		
-		dialog.timeLabel = QLabel()
+		dialog.timeLabel = QtW.QLabel()
 		dialog.timeLabel.setStyleSheet('color: grey')
 		dialog.timeLabel.hide()
 
 		dialog.updateTime()
 		
-		dialog.inputBox = QHBoxLayout()
+		dialog.inputBox = QtW.QHBoxLayout()
 		dialog.mainButtonsBox.insertLayout(0, dialog.inputBox)
 		dialog.mainButtonsBox.takeAt(1) # Remove stretch as spacing is manually configured here.
 

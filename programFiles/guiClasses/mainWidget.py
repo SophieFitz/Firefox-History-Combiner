@@ -1,15 +1,16 @@
-from PyQt5.QtWidgets import QWidget, QPushButton, QGridLayout, QLabel
 from PyQt5.QtCore import Qt, QThread
+import PyQt5.QtWidgets as QtW
 
 from configparser import ConfigParser
 from pathlib import Path
 
 from programFiles.guiClasses.warning_info import createWarning_InfoDialog, createFaviconsMissingDialog, createErrorDialog, createBackupDialog
-from programFiles.combinerFunctions.Supplementary.otherFunctions import faviconsFiles, checkDBExists
+from programFiles.combinerFunctions.Supplementary.getModifyValues import faviconsFiles
 from programFiles.guiClasses.dbFolderSelect import createDBSelectionDialog
 from programFiles.guiClasses.settings import createSettingsDialog
 from programFiles.guiClasses.workers import combinerWorker
 from programFiles.guiClasses.misc import confirmChanges
+from programFiles.otherFunctions import checkDBExists
 
 import programFiles.globalVars as g
 import psutil, logging
@@ -17,18 +18,18 @@ import psutil, logging
 combinerLogger = logging.getLogger('Combiner')
 
 
-class createMainWidget(QWidget):
+class createMainWidget(QtW.QWidget):
 	def __init__(self):
 		super().__init__()
 
-		grid = QGridLayout(self)
+		grid = QtW.QGridLayout(self)
 
-		self.stopBtn = QPushButton('Stop')
+		self.stopBtn = QtW.QPushButton('Stop')
 		self.stopBtn.hide()
 
-		self.dbFoldersBtn = QPushButton(' Select DB folders.... ')
-		self.settingsBtn = QPushButton('Settings')
-		self.combineBtn = QPushButton('Combine!')
+		self.dbFoldersBtn = QtW.QPushButton(' Select DB folders.... ')
+		self.settingsBtn = QtW.QPushButton('Settings')
+		self.combineBtn = QtW.QPushButton('Combine!')
 
 		self.combineBtn.clicked.connect(self.combineWarnings)
 
@@ -42,13 +43,16 @@ class createMainWidget(QWidget):
 
 		# Placeholder graphic for progress bar
 		# Would prefer progress bar integrated into the main window, looks nicer (by default it's separate inside its own window).
-		progBarPlaceholder = QLabel('**Progress bar placeholder**')
-		progBarPlaceholder.setStyleSheet('font-weight: bold; font-size: 20px')
+		# progBarPlaceholder = QLabel('**Progress bar placeholder**')
+		# progBarPlaceholder.setStyleSheet('font-weight: bold; font-size: 20px')
+
+		self.progressBar = QtW.QProgressBar()
+		self.progressBar.setMaximum(100)
 
 
 		grid.addWidget(self.dbFoldersBtn, 1, 8)
 		grid.addWidget(self.settingsBtn, 1, 5)
-		grid.addWidget(progBarPlaceholder, 9, 1, 1, 10, Qt.AlignHCenter)
+		grid.addWidget(self.progressBar, 9, 1, 2, 10, Qt.AlignHCenter)
 		grid.addWidget(self.combineBtn, 10, 10)
 		grid.addWidget(self.stopBtn, 10, 10)
 
@@ -116,19 +120,21 @@ class createMainWidget(QWidget):
 		self.combineAllDBs = combinerWorker()
 		self.combineAllDBs.moveToThread(self.combinerThread)
 
-		stopMessage = ['Are you sure you want to cancel combining?   ']
-		stopConfirmDialog = createWarning_InfoDialog('Stop combining?', stopMessage, 'Yes', 'Warning', 'Stop combining')
-		stopConfirmDialog.cancelBtn.setText('No')
-		stopConfirmDialog.cancelBtn.show()
-		
-		stopConfirmDialog.mainButtonsBox.insertSpacing(2, 20)
-		stopConfirmDialog.accepted.connect(self.stopProc)
-		stopConfirmDialog.height += 15
-		stopConfirmDialog.width += 80
-
-		# Start and stop signals
+		# Start signal
 		self.combinerThread.started.connect(self.combineAllDBs.runCombinerProc)
+
+		# Depending on the option, display a 'Stop combining?' dialog box
 		if g.combinerConfig.getint('Reminder dialogs', 'Stop combining') == 0:
+			stopMessage = ['Are you sure you want to cancel combining?   ']
+			stopConfirmDialog = createWarning_InfoDialog('Stop combining?', stopMessage, 'Yes', 'Warning', 'Stop combining')
+			stopConfirmDialog.cancelBtn.setText('No')
+			stopConfirmDialog.cancelBtn.show()
+
+			stopConfirmDialog.mainButtonsBox.insertSpacing(2, 20)
+			stopConfirmDialog.accepted.connect(self.stopProc)
+			stopConfirmDialog.height += 15
+			stopConfirmDialog.width += 80
+
 			self.stopBtn.clicked.connect(lambda: stopConfirmDialog.exec_())
 
 		elif g.combinerConfig.getint('Reminder dialogs', 'Stop combining') == 2:
@@ -137,9 +143,12 @@ class createMainWidget(QWidget):
 		# Setup for the error GUI
 		self.combineAllDBs.error.connect(createErrorDialog)
 
+		# Update the progress bar
+		self.combineAllDBs.updateProgBar.connect(self.progressBar.setValue)
+
 		# Reset combine button, quit thread and remove temp files
 		self.combineAllDBs.finished.connect(self.combiningFinished)
-		
+
 		# DB backup dialog
 		backupDialog = createBackupDialog(self)
 
@@ -163,7 +172,7 @@ class createMainWidget(QWidget):
 				overwriteDialog = createWarning_InfoDialog('Overwrite DBs?', message, 'OK', 'Warning', 'Overwrite DB')
 				overwriteDialog.accepted.connect(self.combiningStarted)
 				overwriteDialog.cancelBtn.show()
-				
+
 				overwriteDialog.width += 20
 				overwriteDialog.exec_()
 
@@ -173,23 +182,22 @@ class createMainWidget(QWidget):
 
 	def combineWarnings(self):
 		# Another dialog hinting at the max_pages setting in Firefox. Suggest to the user to change it?
-			
+
 		self.combinerThread = QThread(self)
 
 		# Only show the dialog if the option to hide it is unchecked.
 		if g.combinerConfig.getint('Reminder dialogs', 'Firefox close') == 0:
 			firefoxOpen = False
 			for proc in psutil.process_iter():
-			    try:
-			        if 'firefox.exe' == proc.name().lower(): firefoxOpen = True
+				try:
+					if 'firefox.exe' == proc.name().lower(): firefoxOpen = True
 
-			    except psutil.AccessDenied: # Not all processes are accessible, therefore skip over any that aren't.
-			        pass
+				except psutil.AccessDenied: # Not all processes are accessible, therefore skip over any that aren't.
+					pass
 
 			if firefoxOpen == True:
 				message = ['WARNING: If you choose to proceed with combining and <b>any</b> instance of Firefox is still open,',
-						   'this may interfere with how accurately the history records are processed.',
-						   'See the Readme for further details.', # Link the readme??? A direct-clickable link.
+						   'some history records may not be processed. See the Readme for further details.', # Link the readme??? A direct-clickable link.
 						   '',
 						   'Press <b>OK</b> to continue anyway.',
 						   'Press <b>Cancel</b> so that you can close all Firefox instances and restart combining.',
@@ -200,7 +208,7 @@ class createMainWidget(QWidget):
 				ffOpenDialog.rejected.connect(self.combiningFinished)
 				ffOpenDialog.cancelBtn.show()
 				ffOpenDialog.width += 18
-				
+
 				ffOpenDialog.exec_()
 
 				# Don't continue combining if the user presses Cancel.
@@ -208,16 +216,19 @@ class createMainWidget(QWidget):
 
 
 		primaryDBPath = g.primaryDBFolder.joinpath('places.sqlite')
-		if checkDBExists(primaryDBPath) == False:
-			primaryDBPath.unlink() # Remove 0-byte places.sqlite file.
-			message = [f'The main DB (<b><i>places.sqlite</i></b>) is either missing from <a href="file:///{g.primaryDBFolder}">here</a>'
-						' or has been misnamed.',
-						'The name must be <b><i>places.sqlite</i></b> (and <b><i>favicons.sqlite</i></b> if relevant).',
-						'Please rename the appropriate files (along with its <b><i>favicons.sqlite</i></b> counterpart if relevant)',
-						'and copy it/them into the above folder. Then press <i>Combine</i> again.']
+		if primaryDBPath.is_file() == True:
+			if checkDBExists(primaryDBPath) == False: primaryDBPath.unlink() # Remove 0-byte places.sqlite file.
+
+		if primaryDBPath.is_file() == False:
+			message = [f'The main DB is either missing from <a href="file:///{g.primaryDBFolder}">here</a>'
+					   ' or has been misnamed.',
+					   'The name must be <b><i>places.sqlite</i></b> (and <b><i>favicons.sqlite</i></b> if relevant).',
+					   '',
+					   'Please rename the appropriate file(s) and copy it/them into the above folder.',
+					   'Then press <i>Combine</i> again.']
 
 			placesMissingDialog = createWarning_InfoDialog('Main places.sqlite DB missing', message, 'OK', 'Error')
-			placesMissingDialog.width -= 3
+			placesMissingDialog.width += 15
 			placesMissingDialog.height += 10
 			placesMissingDialog.heightComp = 50
 			placesMissingDialog.exec_()

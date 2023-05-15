@@ -18,7 +18,7 @@ if Path.cwd().joinpath('Settings.ini').is_file() == True:
 			'Include downloads': '0', # DB versions older than FF 20.0 use 'downloads.sqlite'. I'm not including provision for this unless absolutely necessary.
 			'Update frecency': '0',
 			'Primary DB folder': str(Path.home().joinpath('AppData\\Roaming\\Mozilla\\Firefox\\Profiles')),
-			'DB folders': '{}'
+			'DB folders': '[]'
 			# 'Recursive': '2' # Search all subfolders
 			# 'Folder positions': {'Menu': {'Before': False, 'After': False, 'Don\'t change': True}, 
 			#                   'Toolbar': {'Before': False, 'After': False, 'Don\'t change': True}}
@@ -49,7 +49,8 @@ if Path.cwd().joinpath('Settings.ini').is_file() == True:
 		'Debugging': {
 			'Enabled': '2',
 			'Debug level': '10', # logging.ERROR is 40, logging.INFO is 20 and logging.DEBUG is 10
-			'Log personal info': '2'
+			'Log personal info': '2',
+			'Log table schemas': '0'
 			},
 
 		'Misc': {

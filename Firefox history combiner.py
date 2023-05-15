@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QApplication, QDesktopWidget, QMainWindow
 from configparser import ConfigParser
+import PyQt5.QtWidgets as QtW
 from pathlib import Path
 
 from programFiles.otherFunctions import removeOrphanedSqliteFiles, removeTempFiles
@@ -11,7 +11,7 @@ import programFiles.globalVars as g
 import logging, ast
 
 
-class createMainWindow(QMainWindow):
+class createMainWindow(QtW.QMainWindow):
 	def __init__(self):
 		super().__init__()
 		# Support for different size screens??? Resize widgets and text to accommodate??
@@ -20,7 +20,7 @@ class createMainWindow(QMainWindow):
 		self.setWindowTitle('Firefox History Combiner')
 
 		# So that the DB folder selection dialog doesn't totally hide the main window when it's opened. Aesthetics, but it's important to me.
-		screen = QDesktopWidget().screenGeometry()
+		screen = QtW.QDesktopWidget().screenGeometry()
 		win = self.geometry()
 		x = int((screen.width() /2) - (win.width() /2))
 		y = int((screen.height() /2) - (win.height() /2) -70)
@@ -62,7 +62,7 @@ loggerLevel = g.combinerConfig.getint('Debugging', 'Debug level')
 combinerLogger.setLevel(loggerLevel)
 
 
-app = QApplication([])
+app = QtW.QApplication([])
 mainWindow = createMainWindow()
 mainWidget = createMainWidget()
 mainWindow.setCentralWidget(mainWidget)
@@ -88,12 +88,12 @@ message = ['Welcome to Firefox History Combiner!',
 
 # welcomeDialog.messageLabel.setToolTip(frecencyLink)
 welcomeDialog = createWarning_InfoDialog('Welcome', message, 'OK', 'Info', 'Welcome')
+welcomeDialog.finished.connect(mainWindow.show)
 
 # No DB folders means it's the program's first run. Therefore show the DB folder selection dialog.
 dbFoldersLen = len(ast.literal_eval(g.combinerConfig.get('History Combiner', 'DB folders')))
 
 if dbFoldersLen == 0:
-	welcomeDialog.finished.connect(mainWindow.show)
 	welcomeDialog.finished.connect(mainWidget.dbSelectionDialog.exec_)
 	welcomeDialog.width += 12
 
@@ -113,7 +113,6 @@ elif dbFoldersLen > 0:
 
 	welcomeDialog.setDialogDims(message)
 	welcomeDialog.width += 20
-	welcomeDialog.finished.connect(mainWindow.show)
 
 
 # If the option is unchecked, display the welcome message

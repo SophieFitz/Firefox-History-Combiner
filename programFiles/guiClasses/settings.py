@@ -1,18 +1,19 @@
-from PyQt5.QtWidgets import QDialog, QWidget, QPushButton, QTabWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QFrame, QLabel
+import PyQt5.QtWidgets as QtW
 from PyQt5.QtCore import Qt
+
 from datetime import datetime
 from pathlib import Path
 
 from programFiles.combinerFunctions.Supplementary.sqlFunctions import checkDBPost34
 
+from programFiles.guiClasses.warning_info import createWarning_InfoDialog
 from programFiles.guiClasses.misc import confirmChanges, cancelChanges
 from programFiles.guiClasses.widgets import createCheckbox
-from programFiles.guiClasses.warning_info import createWarning_InfoDialog
 
 import programFiles.globalVars as g
-import logging, re
+import logging
 
-class createSettingsDialog(QDialog):
+class createSettingsDialog(QtW.QDialog):
 	def __init__(dialog):
 		super().__init__()
 
@@ -20,15 +21,15 @@ class createSettingsDialog(QDialog):
 		dialog.setWindowTitle('Settings')
 		dialog.setWindowFlags(Qt.WindowCloseButtonHint)
 
-		dialog.grid = QGridLayout(dialog)
+		dialog.grid = QtW.QGridLayout(dialog)
 
-		dialog.okBtn = QPushButton('OK')
-		dialog.okBtn.clicked.connect(lambda: confirmChanges(dialog))
+		dialog.okBtn = QtW.QPushButton('OK')
+		dialog.okBtn.clicked.connect(lambda: confirmChanges(dialog = dialog))
 		dialog.okBtn.setDefault(True)
 		dialog.okBtn.setFocus()
 
-		dialog.cancelBtn = QPushButton('Cancel')
-		dialog.cancelBtn.clicked.connect(lambda: cancelChanges(dialog))
+		dialog.cancelBtn = QtW.QPushButton('Cancel')
+		dialog.cancelBtn.clicked.connect(lambda: cancelChanges(dialog = dialog))
 
 	# 'Don't show again' dialog options don't work if put in __init__(). 
 	# __init__() only works once, on first creation. Therefore any outside changes that influence options inside of this dialog won't work
@@ -40,7 +41,7 @@ class createSettingsDialog(QDialog):
 		# Manually overwriting the widget's background-color fixes the bug. Or the widget's parent (QTabWidget in this case).
 		bgColour = 'rgb(240, 240, 240)'
 
-		tabWidget = QTabWidget()
+		tabWidget = QtW.QTabWidget()
 		tabWidget.setStyleSheet(f'background-color: {bgColour}')
 		tabWidget.addTab(dialog.historyTab(dialog), 'History')
 		tabWidget.addTab(dialog.backupTab(dialog), 'Backups')
@@ -66,11 +67,11 @@ class createSettingsDialog(QDialog):
 		if keyEvent.key() == Qt.Key_Escape: dialog.cancelBtn.click()
 		else: super().keyReleaseEvent(keyEvent)
 
-	class historyTab(QWidget):
+	class historyTab(QtW.QWidget):
 		def __init__(tab, dialog):
 			super().__init__()
 
-			titleLabel = QLabel('Include:')
+			titleLabel = QtW.QLabel('Include:')
 			titleLabel.setStyleSheet('font-weight: bold; font-size: 12px')
 
 			bookmarks = createCheckbox('Bookmarks', 'History Combiner', 'Bookmarks')
@@ -84,15 +85,15 @@ class createSettingsDialog(QDialog):
 			bookmarks.stateChanged.connect(lambda: bookmarkFoldersPos.setEnabled(bookmarks.isChecked()))
 			bookmarkFoldersPos.setEnabled(bookmarks.isChecked())
 
-			folderPosBox = QHBoxLayout()
+			folderPosBox = QtW.QHBoxLayout()
 			folderPosBox.addSpacing(19)
 			folderPosBox.addWidget(bookmarkFoldersPos)
 			
-			checkmarksBox = QVBoxLayout()
+			checkmarksBox = QtW.QVBoxLayout()
 			checkmarksBox.addWidget(bookmarks)
 			checkmarksBox.addLayout(folderPosBox)
 
-			leftMarginBox = QHBoxLayout()
+			leftMarginBox = QtW.QHBoxLayout()
 			leftMarginBox.addSpacing(15)
 			leftMarginBox.addLayout(checkmarksBox)
 
@@ -101,10 +102,10 @@ class createSettingsDialog(QDialog):
 			
 			checkmarksBox.addStretch(1)
 
-			mainFrame = QFrame(tab)
+			mainFrame = QtW.QFrame(tab)
 			mainFrame.move(6, 0)
 
-			mainBox = QVBoxLayout(mainFrame)
+			mainBox = QtW.QVBoxLayout(mainFrame)
 			mainBox.addWidget(titleLabel)
 			mainBox.addLayout(leftMarginBox)
 
@@ -124,20 +125,24 @@ class createSettingsDialog(QDialog):
 						downloadsDialog.exec_()
 
 
-	class backupTab(QWidget):
+	class backupTab(QtW.QWidget):
 		def __init__(tab, dialog):
 			super().__init__()
 
 			dialog.backupFinishedDBs = createCheckbox('Backup completed DBs', 'Backup', 'Finished DBs')
+			overwritePrimaryDB = createCheckbox('Hide overwrite Primary DB warning dialog', 'Reminder dialogs', 'Overwrite DB')
 			openCompletedFolder = createCheckbox('Automatically show folder on completion', 'Backup', 'Open folder')
 
 			dialog.backupFinishedDBs.stateChanged.connect(lambda: openCompletedFolder.setEnabled(dialog.backupFinishedDBs.isChecked()))
 			openCompletedFolder.setEnabled(dialog.backupFinishedDBs.isChecked())
 
+			dialog.backupFinishedDBs.stateChanged.connect(lambda: overwritePrimaryDB.setEnabled(not dialog.backupFinishedDBs.isChecked()))
+			overwritePrimaryDB.setEnabled(not dialog.backupFinishedDBs.isChecked())
+
 			completedDBsPath = Path.cwd().joinpath('Completed DBs')
 			tab.dbFolders = [folder for folder in completedDBsPath.iterdir()]
-			sizeSaved = 0
 			tab.timestampToSkip = 0
+			sizeSaved = 0
 			for folder in tab.dbFolders:
 				if folder.stat().st_mtime > tab.timestampToSkip:
 					tab.timestampToSkip = folder.stat().st_mtime
@@ -161,18 +166,19 @@ class createSettingsDialog(QDialog):
 			purgeWarningDialog.width += 40
 
 
-			purgeBtn = QPushButton('Purge Completed DBs')
+			purgeBtn = QtW.QPushButton('Purge Completed DBs')
 			purgeBtn.clicked.connect(purgeWarningDialog.exec_)
 			if len(tab.dbFolders) <= 1: # Only enable button if there's more than one folder to purge.
 				purgeBtn.setEnabled(False)
 				purgeBtn.setStyleSheet('background-color: rgba(240, 240, 240, 80)')
 			
-			purgeBox = QHBoxLayout()
+			purgeBox = QtW.QHBoxLayout()
 			purgeBox.addStretch(1)
 			purgeBox.addWidget(purgeBtn)
 
-			mainBox = QVBoxLayout(tab)
+			mainBox = QtW.QVBoxLayout(tab)
 			mainBox.addWidget(dialog.backupFinishedDBs)
+			mainBox.addWidget(overwritePrimaryDB)
 			mainBox.addWidget(openCompletedFolder)
 			mainBox.addStretch(1)
 			mainBox.addLayout(purgeBox)
@@ -184,25 +190,22 @@ class createSettingsDialog(QDialog):
 				folder.rmdir()
 
 
-	class dialogsTab(QWidget):
+	class dialogsTab(QtW.QWidget):
 		def __init__(tab, dialog):
 			super().__init__()
 
-			titleLabel = QLabel('Hide:')
+			titleLabel = QtW.QLabel('Hide dialog for:')
 			titleLabel.setStyleSheet('font-weight: bold; font-size: 12px')
 
 			welcome = createCheckbox('Welcome message', 'Reminder dialogs', 'Welcome')
 			downloads = createCheckbox('Pre FF 21.0 downloads warning', 'Reminder dialogs', 'Downloads')
 			# numberDBs = createCheckbox('Number DBs reminder', 'Reminder dialogs', 'Number DBs')
 			stopCombining = createCheckbox('Stop combining warning', 'Reminder dialogs', 'Stop combining')
-			overwritePrimaryDB = createCheckbox('Overwrite Primary DB warning', 'Reminder dialogs', 'Overwrite DB')
 			firefoxClose = createCheckbox('Close all Firefox instances warning', 'Reminder dialogs', 'Firefox close')
 
-			dialog.backupFinishedDBs.stateChanged.connect(lambda: overwritePrimaryDB.setEnabled(not dialog.backupFinishedDBs.isChecked()))
-			overwritePrimaryDB.setEnabled(not dialog.backupFinishedDBs.isChecked())
 
-			checkmarksBox = QVBoxLayout()
-			leftMarginBox = QHBoxLayout()
+			checkmarksBox = QtW.QVBoxLayout()
+			leftMarginBox = QtW.QHBoxLayout()
 			leftMarginBox.addSpacing(10)
 			leftMarginBox.addLayout(checkmarksBox)
 
@@ -210,41 +213,55 @@ class createSettingsDialog(QDialog):
 			checkmarksBox.addWidget(downloads)
 			# checkmarksBox.addWidget(numberDBs)
 			checkmarksBox.addWidget(stopCombining)
-			checkmarksBox.addWidget(overwritePrimaryDB)
 			checkmarksBox.addWidget(firefoxClose)
 			checkmarksBox.addStretch(1)
 
-			mainFrame = QFrame(tab)
+			mainFrame = QtW.QFrame(tab)
 			mainFrame.move(6, 0)
 
-			mainBox = QVBoxLayout(mainFrame)
+			mainBox = QtW.QVBoxLayout(mainFrame)
 			mainBox.addWidget(titleLabel)
 			mainBox.addLayout(leftMarginBox)
 
 
-	class uiTab(QWidget):
+	class uiTab(QtW.QWidget):
 		def __init__(tab, dialog):
 			super().__init__()
 
-			autoSizeFolderDialog = createCheckbox('Auto-resize folder dialog to longest folder name', 'GUI', 'Auto-size folder dialog width')
+			autoSizeFolderDialog = createCheckbox('Auto-resize dialog width to longest folder name', 'GUI', 'Auto-size folder dialog width')
+			# autoSizeFolderDialog.setToolTip('No wider than half the width of the current screen resolution')
 
-			mainBox = QVBoxLayout(tab)
-			mainBox.addWidget(autoSizeFolderDialog)
+			titleLabel = QtW.QLabel('Folder selection dialog:')
+			titleLabel.setStyleSheet('font-weight: bold; font-size: 12px')
+
+			widgetBox = QtW.QVBoxLayout()
+			leftMarginBox = QtW.QHBoxLayout()
+			leftMarginBox.addSpacing(10)
+			leftMarginBox.addLayout(widgetBox)
+
+			widgetBox.addWidget(autoSizeFolderDialog)
+
+			mainFrame = QtW.QFrame(tab)
+			mainFrame.move(6, 0)
+
+			mainBox = QtW.QVBoxLayout(mainFrame)
+			mainBox.addWidget(titleLabel)
+			mainBox.addLayout(leftMarginBox)
 			mainBox.addStretch(1)
 
 
-	class miscTab(QWidget):
+	class miscTab(QtW.QWidget):
 		def __init__(tab, dialog):
 			super().__init__()
 
 			pyInstallerCrashFiles = createCheckbox('Delete leftover temporary files, if the program crashes', 'Misc', 'Delete crashed py-installer files')
 
-			mainBox = QVBoxLayout(tab)
+			mainBox = QtW.QVBoxLayout(tab)
 			mainBox.addWidget(pyInstallerCrashFiles)
 			mainBox.addStretch(1)
 
 
-	class debugTab(QWidget):
+	class debugTab(QtW.QWidget):
 		def __init__(tab, dialog):
 			super().__init__()
 
@@ -252,9 +269,9 @@ class createSettingsDialog(QDialog):
 			# enableDebug.stateChanged.connect(lambda: tab.setLoggingLevel())
 
 			logPersonalInfo = createCheckbox('Log URLs, page names etc.', 'Debugging', 'Log personal info')
-			optionsBox = QVBoxLayout()
+			optionsBox = QtW.QVBoxLayout()
 			
-			mainBox = QVBoxLayout(tab)
+			mainBox = QtW.QVBoxLayout(tab)
 			mainBox.addWidget(logPersonalInfo)
 			# mainBox.addWidget(enableDebug)
 			mainBox.addLayout(optionsBox)
