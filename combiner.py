@@ -34,17 +34,17 @@ def combiner():
 		# Only transfer bookmarks if both DBs are above FF 4.0
 		extBookmarksGUID = columnPresent(curMain, 'dbExt', 'moz_bookmarks', 'guid')
 		if insBookmarksGUID == True and extBookmarksGUID == True:
-			if g.combinerConfig.getint('History Combiner', 'Bookmarks') == 2:
+			if g.combinerConfig.get('History Combiner', 'Bookmarks') == 'Checked':
 				newBookmarkIDs = mozBookmarks(curMain) # Bookmarks and if checked, Downloads
 				annotations(curMain, newBookmarkIDs)
 
-			elif g.combinerConfig.getint('History Combiner', 'Bookmarks') == 0: annotations(curMain, {}) # Downloads, if checked
+			elif g.combinerConfig.get('History Combiner', 'Bookmarks') == 'Unchecked': annotations(curMain, {}) # Downloads, if checked
 
 		else: print('Cannot transfer bookmarks as DB insert and/or DB extract is older than Firefox 4.0')
 
 
-		if g.combinerConfig.getint('History Combiner', 'Inputhistory') == 2: mozInputHistory(curMain)
-		if g.combinerConfig.getint('History Combiner', 'Keywords') == 2: mozKeywords(curMain)
+		if g.combinerConfig.get('History Combiner', 'Inputhistory') == 'Checked': mozInputHistory(curMain)
+		if g.combinerConfig.get('History Combiner', 'Keywords') == 'Checked': mozKeywords(curMain)
 		
 		
 		if dbExtIcons is None: 
@@ -82,8 +82,8 @@ def combiner():
 
 
 	# Frecency settings
-	updateFrecSetting = g.combinerConfig.getint('History Combiner', 'Update frecency')
-	if updateFrecSetting == 1: oldPlaceGUIDs = getAllEntries(cur = curMain, SQL = 'SELECT guid from main.moz_places', dictSchema = [0, ''])
+	updateFrecSetting = g.combinerConfig.get('History Combiner', 'Update frecency')
+	if updateFrecSetting == 'PartiallyChecked': oldPlaceGUIDs = getAllEntries(cur = curMain, SQL = 'SELECT guid from main.moz_places', dictSchema = [0, ''])
 
 	# This seems to commit everything properly. Autocheckpoint increment is every 1 entry, instead of 1000.
 	# And it's set to Truncate rather than Passive to make sure it all gets properly committed and has exclusive access to do so.
@@ -134,8 +134,8 @@ def combiner():
 		combineTables(dbExtPath, db2)
 
 
-	if updateFrecSetting == 1: updateFrecency(curMain, updateFrecSetting, oldPlaceGUIDs)
-	elif updateFrecSetting == 2: updateFrecency(curMain, updateFrecSetting)
+	if updateFrecSetting == 'PartiallyChecked': updateFrecency(curMain, updateFrecSetting, oldPlaceGUIDs)
+	elif updateFrecSetting == 'Checked': updateFrecency(curMain, updateFrecSetting)
 	updateIcons_toPages(curMain, dbInsPre55)
 	updateVisit_foreignCounts(curMain)
 	updatePlaceURLHashes(curMain)

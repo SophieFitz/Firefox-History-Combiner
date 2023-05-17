@@ -1,5 +1,5 @@
-from PyQt5.QtCore import Qt, QThread
-import PyQt5.QtWidgets as QtW
+from PyQt6.QtCore import Qt, QThread
+import PyQt6.QtWidgets as QtW
 
 from configparser import ConfigParser
 from pathlib import Path
@@ -34,11 +34,11 @@ class createMainWidget(QtW.QWidget):
 		self.combineBtn.clicked.connect(self.combineWarnings)
 
 		self.dbSelectionDialog = createDBSelectionDialog(self.combineBtn)
-		self.dbFoldersBtn.clicked.connect(self.dbSelectionDialog.exec_)
+		self.dbFoldersBtn.clicked.connect(self.dbSelectionDialog.exec)
 		# self.dbFoldersBtn.click()
 		
 		settingsDialog = createSettingsDialog()
-		self.settingsBtn.clicked.connect(lambda: settingsDialog.exec_()) # Need lambda here, doesn't work without it.
+		self.settingsBtn.clicked.connect(lambda: settingsDialog.exec()) # Need lambda here, doesn't work without it.
 		# self.settingsBtn.click()
 
 		# Placeholder graphic for progress bar
@@ -52,7 +52,7 @@ class createMainWidget(QtW.QWidget):
 
 		grid.addWidget(self.dbFoldersBtn, 1, 8)
 		grid.addWidget(self.settingsBtn, 1, 5)
-		grid.addWidget(self.progressBar, 9, 1, 2, 10, Qt.AlignHCenter)
+		grid.addWidget(self.progressBar, 9, 1, 2, 10, Qt.AlignmentFlag.AlignHCenter)
 		grid.addWidget(self.combineBtn, 10, 10)
 		grid.addWidget(self.stopBtn, 10, 10)
 
@@ -65,8 +65,8 @@ class createMainWidget(QtW.QWidget):
 		grid.setColumnMinimumWidth(7, 5)
  
 	def keyPressEvent(self, keyEvent):
-		if keyEvent.key() == Qt.Key_Escape and self.stopBtn.isVisible() == True: self.stopBtn.click() # Press esc to terminate combining.
-		if keyEvent.key() in (Qt.Key_Return, Qt.Key_Enter) and self.combineBtn.isVisible() == True: self.combineBtn.click()
+		if keyEvent.key() == Qt.Key.Key_Escape and self.stopBtn.isVisible() == True: self.stopBtn.click() # Press esc to terminate combining.
+		if keyEvent.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and self.combineBtn.isVisible() == True: self.combineBtn.click()
 		else: super().keyPressEvent(keyEvent)
 
 	def combiningStarted(self):
@@ -124,7 +124,7 @@ class createMainWidget(QtW.QWidget):
 		self.combinerThread.started.connect(self.combineAllDBs.runCombinerProc)
 
 		# Depending on the option, display a 'Stop combining?' dialog box
-		if g.combinerConfig.getint('Reminder dialogs', 'Stop combining') == 0:
+		if g.combinerConfig.get('Reminder dialogs', 'Stop combining') == 'Unchecked':
 			stopMessage = ['Are you sure you want to cancel combining?   ']
 			stopConfirmDialog = createWarning_InfoDialog('Stop combining?', stopMessage, 'Yes', 'Warning', 'Stop combining')
 			stopConfirmDialog.cancelBtn.setText('No')
@@ -135,9 +135,9 @@ class createMainWidget(QtW.QWidget):
 			stopConfirmDialog.height += 15
 			stopConfirmDialog.width += 80
 
-			self.stopBtn.clicked.connect(lambda: stopConfirmDialog.exec_())
+			self.stopBtn.clicked.connect(lambda: stopConfirmDialog.exec())
 
-		elif g.combinerConfig.getint('Reminder dialogs', 'Stop combining') == 2:
+		elif g.combinerConfig.get('Reminder dialogs', 'Stop combining') == 'Checked':
 			self.stopBtn.clicked.connect(self.stopProc)
 
 		# Setup for the error GUI
@@ -153,12 +153,12 @@ class createMainWidget(QtW.QWidget):
 		backupDialog = createBackupDialog(self)
 
 		# Only backup if the option is checked
-		if g.combinerConfig.getint('Backup', 'Finished DBs') == 2:
-			backupDialog.exec_()
+		if g.combinerConfig.get('Backup', 'Finished DBs') == 'Checked':
+			backupDialog.exec()
 			self.combineAllDBs.backup.connect(backupDialog.backupDBs)
 
-		elif g.combinerConfig.getint('Backup', 'Finished DBs') == 0:
-			if g.combinerConfig.getint('Reminder dialogs', 'Overwrite DB') == 0:
+		elif g.combinerConfig.get('Backup', 'Finished DBs') == 'Unchecked':
+			if g.combinerConfig.get('Reminder dialogs', 'Overwrite DB') == 'Unchecked':
 				message = ['Auto-backing up of combined DBs has been disabled. Because of this, the most recently combined',
 						   '<i><b>places.sqlite</b></i> DB is located in Firefox History Combiner\'s root directory.',
 						   '',
@@ -174,9 +174,9 @@ class createMainWidget(QtW.QWidget):
 				overwriteDialog.cancelBtn.show()
 
 				overwriteDialog.width += 20
-				overwriteDialog.exec_()
+				overwriteDialog.exec()
 
-			elif g.combinerConfig.getint('Reminder dialogs', 'Overwrite DB') == 2:
+			elif g.combinerConfig.get('Reminder dialogs', 'Overwrite DB') == 'Checked':
 				self.combiningStarted()
 
 
@@ -186,7 +186,7 @@ class createMainWidget(QtW.QWidget):
 		self.combinerThread = QThread(self)
 
 		# Only show the dialog if the option to hide it is unchecked.
-		if g.combinerConfig.getint('Reminder dialogs', 'Firefox close') == 0:
+		if g.combinerConfig.get('Reminder dialogs', 'Firefox close') == 'Checked':
 			firefoxOpen = False
 			for proc in psutil.process_iter():
 				try:
@@ -204,12 +204,12 @@ class createMainWidget(QtW.QWidget):
 						   '']
 
 				ffOpenDialog = createWarning_InfoDialog('Please close Firefox', message, 'OK', 'Warning')
-				ffOpenDialog.setWindowFlags(Qt.WindowTitleHint)
+				ffOpenDialog.setWindowFlags(Qt.WindowType.WindowTitleHint)
 				ffOpenDialog.rejected.connect(self.combiningFinished)
 				ffOpenDialog.cancelBtn.show()
 				ffOpenDialog.width += 18
 
-				ffOpenDialog.exec_()
+				ffOpenDialog.exec()
 
 				# Don't continue combining if the user presses Cancel.
 				if ffOpenDialog.result() == 0: return
@@ -231,15 +231,15 @@ class createMainWidget(QtW.QWidget):
 			placesMissingDialog.width += 15
 			placesMissingDialog.height += 10
 			placesMissingDialog.heightComp = 50
-			placesMissingDialog.exec_()
+			placesMissingDialog.exec()
 			return
 
 		(mainMissing, othersMissing) = faviconsFiles('Check')
 		faviconsMissingDialog = createFaviconsMissingDialog(mainMissing, othersMissing)
 		faviconsMissingDialog.accepted.connect(lambda: self.startCombining())
 
-		if len(othersMissing) > 0: faviconsMissingDialog.exec_('Resizable') # Make it resizable if it's a list, otherwise don't.
-		elif len(othersMissing) == 0 and mainMissing is not None: faviconsMissingDialog.exec_()
+		if len(othersMissing) > 0: faviconsMissingDialog.exec('Resizable') # Make it resizable if it's a list, otherwise don't.
+		elif len(othersMissing) == 0 and mainMissing is not None: faviconsMissingDialog.exec()
 
 		elif mainMissing is None and len(othersMissing) == 0:
 			self.startCombining()

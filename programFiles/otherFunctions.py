@@ -74,7 +74,7 @@ def removeFiles_Dirs(path, pathType):
 
 def removeTempFiles():
 	# Only delete the files if the option is checked.
-	if g.combinerConfig.getint('Misc', 'Delete crashed py-installer files') == 2:
+	if g.combinerConfig.get('Misc', 'Delete crashed py-installer files') == 'Checked':
 		tempDirGen = Path.home().joinpath(r'AppData\Local\Temp').glob('_MEI*')
 		tempDirs = [tempDir for tempDir in tempDirGen]
 		cTimes = [tempDir.stat().st_ctime for tempDir in tempDirs]

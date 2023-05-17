@@ -276,8 +276,8 @@ def mozBookmarks(curMain):
 	# If the option is checked:
 	# Group all folders in the main menu together and preserve their original positioning while moving them collectively above the bookmarks.
 	foldersMenuPosSQL = 'SELECT id from main.moz_bookmarks where parent = 2 order by fk asc, position asc'
-	foldersAbove = g.combinerConfig.getint('History Combiner', 'Folders above')
-	if foldersAbove == 2:
+	foldersAbove = g.combinerConfig.get('History Combiner', 'Folders above')
+	if foldersAbove == 'Checked':
 		newPos = 0
 		allBookmarks = getAllEntries(cur = curMain, SQL = foldersMenuPosSQL, dictSchema = [0, ''])
 		for bkID in allBookmarks.keys():

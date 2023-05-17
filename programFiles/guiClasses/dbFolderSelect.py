@@ -1,6 +1,6 @@
-from PyQt5.QtCore import Qt, QSize, QItemSelectionModel
-import PyQt5.QtWidgets as QtW
-from PyQt5.QtGui import QFont
+from PyQt6.QtCore import Qt, QSize, QItemSelectionModel
+from PyQt6.QtGui import QFont, QGuiApplication
+import PyQt6.QtWidgets as QtW
 from pathlib import Path
 import ast
 
@@ -20,15 +20,15 @@ class createDBSelectionDialog(QtW.QDialog):
 
 		dialog.setMinimumSize(450, dialog.minHeight)
 		dialog.setWindowTitle('Database folder selection')
-		dialog.setWindowFlags(Qt.WindowCloseButtonHint)
+		dialog.setWindowFlags(Qt.WindowType.WindowCloseButtonHint)
 
 		# dialog.recursiveCheckbox = createCheckbox('Look in all subfolders (recursive processing)', 'History Combiner', 'Recursive')
 		# dialog.recursiveCheckbox.setToolTip('Doesn\'t apply to Firefox Profiles (i.e. \\AppData\\Roaming\\Mozilla\\Firefox\\Profiles)')
 
 		dialog.selectionBox = QtW.QListWidget()
-		dialog.selectionBox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-		dialog.selectionBox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-		dialog.selectionBox.setSelectionMode(QtW.QAbstractItemView.ExtendedSelection) # Enable multi-selection!
+		dialog.selectionBox.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+		dialog.selectionBox.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+		dialog.selectionBox.setSelectionMode(QtW.QAbstractItemView.SelectionMode.ExtendedSelection) # Enable multi-selection!
 		dialog.selectionBox.setMinimumWidth(220)
 		
 		dialog.selectionBox.keyPressEvent = dialog.selectionBoxEnterPressed
@@ -82,17 +82,17 @@ class createDBSelectionDialog(QtW.QDialog):
 		mainBox.addLayout(mainButtonsBox)
 
 	def keyPressEvent(dialog, keyEvent):
-		if keyEvent.key() == Qt.Key_Escape:
+		if keyEvent.key() == Qt.Key.Key_Escape:
 			dialog.cancelBtn.setFocus()
 
 		# I've set it here that anytime the user presses the CTRL or SHIFT keys, the list box is brought to focus.
 		# Witout this, Ctrl+A won't always select all the items in the list.
 		# This means that any CTRL+A usages will work regardless of whether the user has already selected the box or not!
 		# Same for Shift+Up and Shift+Down.
-		elif keyEvent.key() in (Qt.Key_Control, Qt.Key_Shift): dialog.selectionBox.setFocus()
+		elif keyEvent.key() in (Qt.Key.Key_Control, Qt.Key.Key_Shift): dialog.selectionBox.setFocus()
 
 		# Pressing Backspace or Delete activates the removeDir() function!
-		elif keyEvent.key() in (Qt.Key_Delete, Qt.Key_Backspace): dialog.removeDir()
+		elif keyEvent.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace): dialog.removeDir()
 		else: super().keyPressEvent(keyEvent)
 
 	def dirDialog(dialog, dirType, *primaryDB):
@@ -191,7 +191,7 @@ class createDBSelectionDialog(QtW.QDialog):
 				duplicateDialog = createWarning_InfoDialog(title, message, 'OK', 'Warning')
 				duplicateDialog.width += width
 				duplicateDialog.height += height
-				duplicateDialog.exec_()
+				duplicateDialog.exec()
 
 				if primaryDB: dir_ = dialog.dirDialog(dirType, primaryDB)
 				elif not primaryDB: dir_ = dialog.dirDialog(dirType)
@@ -222,7 +222,7 @@ class createDBSelectionDialog(QtW.QDialog):
 			else: dir_ = dialog.dirDialog('Modify')
 
 			# Clear the selection and focus the OK button (not done automatically).
-			dialog.selectionBox.setCurrentRow(selectedRows[0].row(), QItemSelectionModel.Clear)
+			dialog.selectionBox.clearSelection()
 			dialog.okBtn.setFocus()
 
 			if dir_ == '': return # If the user hits 'Cancel', exit the folder-picker dialog.
@@ -295,7 +295,7 @@ class createDBSelectionDialog(QtW.QDialog):
 			newDirsDialog.messageLabel.setToolTip(tooltip)
 			newDirsDialog.width += width
 			newDirsDialog.heightComp = 60
-			newDirsDialog.exec_()
+			newDirsDialog.exec()
 			return
 
 		option = 'Number DBs' # For 'Don't show this again' message
@@ -314,17 +314,17 @@ class createDBSelectionDialog(QtW.QDialog):
 			 'Hint 2: Obviously this reminder doesn\'t apply to DBs taken from actual Profiles (i.e. AppData\\Mozilla\\Firefox\\Profiles)')
 			
 			numberDBsDialog = createWarning_InfoDialog('Have you numbered the DBs?', message, 'OK', 'Info', option)
-			numberDBsDialog.exec_()
+			numberDBsDialog.exec()
 
 		dialog.combineBtn.setEnabled(True)        
 		confirmChanges(dialog = dialog)
 
 	def cancelKeyRelease(dialog, keyEvent):
-		if keyEvent.key() == Qt.Key_Escape: dialog.cancelBtn.click()
+		if keyEvent.key() == Qt.Key.Key_Escape: dialog.cancelBtn.click()
 		else: super(QtW.QPushButton, dialog.cancelBtn).keyReleaseEvent(keyEvent)
 
 	def selectionBoxEnterPressed(dialog, keyEvent):
-		if keyEvent.key() in (Qt.Key_Return, Qt.Key_Enter):
+		if keyEvent.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
 			selectedRows = len(dialog.selectionBox.selectionModel().selectedRows())
 			if selectedRows == 0 or selectedRows > 1: dialog.okBtn.click() # If 0 rows or more than 1 row is selected, close the window and save changes.
 			elif selectedRows == 1: dialog.modifyDir() # If 1 row is selected, pressing Enter modifies that directory!!
@@ -336,7 +336,7 @@ class createDBSelectionDialog(QtW.QDialog):
 			dialog.selectionBox.addItems(titlesSeparators)
 
 			separator = QtW.QFrame()
-			separator.setFrameShape(QtW.QFrame.HLine)
+			separator.setFrameShape(QtW.QFrame.Shape.HLine)
 			dialog.selectionBox.setItemWidget(dialog.selectionBox.item(sepPos), separator)
 
 			dialog.selectionBox.item(sizePos[0]).setSizeHint(QSize(1, 19)) # Title
@@ -346,7 +346,7 @@ class createDBSelectionDialog(QtW.QDialog):
 			title = dialog.selectionBox.item(titlePos_Size[0])
 			title.setFont(titleFont)
 			title.setSizeHint(QSize(1, titlePos_Size[1]))
-			title.setTextAlignment(Qt.AlignBottom)
+			title.setTextAlignment(Qt.AlignmentFlag.AlignBottom)
 
 			
 		dialog.selectionBox.clear()
@@ -367,38 +367,38 @@ class createDBSelectionDialog(QtW.QDialog):
 		# Disable titles and separators, not invisible but not enabled!
 		for i in range(7):
 			if i != 3:
-				dialog.selectionBox.item(i).setFlags(dialog.selectionBox.item(i).flags() & ~Qt.ItemIsEnabled)
+				dialog.selectionBox.item(i).setFlags(dialog.selectionBox.item(i).flags() & ~Qt.ItemFlag.ItemIsEnabled)
 		
 		# for i in range(8, dialog.selectionBox.count()): dialog.selectionBox.item(i).setSizeHint(QSize(1, 19))
 		# dialog.selectionBox.setAutoScroll(True)
 
-	def exec_(dialog):
+	def exec(dialog):
 		# dialog.recursiveCheckbox.resetState() # It incorrectly displays otherwise.
 		dialog.dbFolders = ast.literal_eval(g.combinerConfig.get('History Combiner', 'DB folders'))
 		dialog.primaryDBFolder = g.combinerConfig.get('History Combiner', 'Primary DB folder')
 		dialog.fillSelectionBox()
 
 		# If the option is checked, resize the dialog to width
-		if g.combinerConfig.getint('GUI', 'Auto-size folder dialog width') == 2:
+		if g.combinerConfig.get('GUI', 'Auto-size folder dialog width') == 'Checked':
 			# Get a list of all displays (just to be thorough)
 			widthList = []
-			for displayNum in range(QtW.QDesktopWidget().screenCount()):
-				widthList.append(QtW.QDesktopWidget().screenGeometry(displayNum).width())
+			for displayNum in QGuiApplication.screens():
+				widthList.append(displayNum.geometry().width())
 
 			# Find the smallest width
-			maxWidth = min(widthList)
+			minWidth = min(widthList)
 
 			# sizeHintForColumn() gets the maximum width of all the rows for the given column.
 			# 140 is the constant. The gap between the right-hand edge of the selection box and the window's right-hand edge.
 			newWidth = dialog.selectionBox.sizeHintForColumn(0) + 140
 
 			# Make sure the new width never exceeds the width of the smallest connected display.
-			if newWidth > maxWidth: newWidth = maxWidth
+			if newWidth > minWidth: newWidth = minWidth
 			
 			dialog.resize(newWidth, dialog.minHeight)
 
 
-		elif g.combinerConfig.getint('GUI', 'Auto-size folder dialog width') == 0:
+		elif g.combinerConfig.get('GUI', 'Auto-size folder dialog width') == 'Unchecked':
 			dialog.resize(450, dialog.minHeight)
 
-		super().exec_()
+		super().exec()

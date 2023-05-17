@@ -1,5 +1,5 @@
-import PyQt5.QtWidgets as QtW
-from PyQt5.QtCore import Qt
+import PyQt6.QtWidgets as QtW
+from PyQt6.QtCore import Qt
 
 from datetime import datetime
 from pathlib import Path
@@ -19,7 +19,7 @@ class createSettingsDialog(QtW.QDialog):
 
 		dialog.setFixedSize(400, 250)
 		dialog.setWindowTitle('Settings')
-		dialog.setWindowFlags(Qt.WindowCloseButtonHint)
+		dialog.setWindowFlags(Qt.WindowType.WindowCloseButtonHint)
 
 		dialog.grid = QtW.QGridLayout(dialog)
 
@@ -33,9 +33,9 @@ class createSettingsDialog(QtW.QDialog):
 
 	# 'Don't show again' dialog options don't work if put in __init__(). 
 	# __init__() only works once, on first creation. Therefore any outside changes that influence options inside of this dialog won't work
-	# as they can only be created once. Putting them in exec_() fixes the problem as this is called anew on each creation.
-	def exec_(dialog):
-		# When using exec_() instead of __init__(), a visual bug in certain text-displaying widgets occurs. 
+	# as they can only be created once. Putting them in exec() fixes the problem as this is called anew on each creation.
+	def exec(dialog):
+		# When using exec() instead of __init__(), a visual bug in certain text-displaying widgets occurs. 
 		# For labels, it becomes essentially multi-coloured if you open and close the window it's attached to multiple times over. 
 		# For radio buttons and checkboxes they become progressively more blurry.
 		# Manually overwriting the widget's background-color fixes the bug. Or the widget's parent (QTabWidget in this case).
@@ -44,9 +44,9 @@ class createSettingsDialog(QtW.QDialog):
 		tabWidget = QtW.QTabWidget()
 		tabWidget.setStyleSheet(f'background-color: {bgColour}')
 		tabWidget.addTab(dialog.historyTab(dialog), 'History')
+		tabWidget.addTab(dialog.uiTab(dialog), 'UI')
 		tabWidget.addTab(dialog.backupTab(dialog), 'Backups')
 		tabWidget.insertTab(1, dialog.dialogsTab(dialog), 'Dialogs') # This is inserted as it relies on the previous tabs' data.
-		tabWidget.addTab(dialog.uiTab(dialog), 'UI')
 		tabWidget.addTab(dialog.miscTab(dialog), 'Misc')
 
 		# Remember last selected tab
@@ -57,14 +57,14 @@ class createSettingsDialog(QtW.QDialog):
 		dialog.grid.addWidget(dialog.okBtn, 5, 5)
 		dialog.grid.addWidget(dialog.cancelBtn, 5, 6)
 
-		super().exec_()
+		super().exec()
 
 	def keyPressEvent(dialog, keyEvent):
-		if keyEvent.key() == Qt.Key_Escape: dialog.cancelBtn.setFocus()
+		if keyEvent.key() == Qt.Key.Key_Escape: dialog.cancelBtn.setFocus()
 		else: super().keyPressEvent(keyEvent)
 
 	def keyReleaseEvent(dialog, keyEvent):
-		if keyEvent.key() == Qt.Key_Escape: dialog.cancelBtn.click()
+		if keyEvent.key() == Qt.Key.Key_Escape: dialog.cancelBtn.click()
 		else: super().keyReleaseEvent(keyEvent)
 
 	class historyTab(QtW.QWidget):
@@ -92,6 +92,7 @@ class createSettingsDialog(QtW.QDialog):
 			checkmarksBox = QtW.QVBoxLayout()
 			checkmarksBox.addWidget(bookmarks)
 			checkmarksBox.addLayout(folderPosBox)
+			checkmarksBox.setSpacing(0)
 
 			leftMarginBox = QtW.QHBoxLayout()
 			leftMarginBox.addSpacing(15)
@@ -99,8 +100,6 @@ class createSettingsDialog(QtW.QDialog):
 
 			for widget in (keywords, inputHistory, tab.includeDownloads, updateFrecency):
 				checkmarksBox.addWidget(widget)
-			
-			checkmarksBox.addStretch(1)
 
 			mainFrame = QtW.QFrame(tab)
 			mainFrame.move(6, 0)
@@ -111,8 +110,8 @@ class createSettingsDialog(QtW.QDialog):
 
 		def downloadsWarning(tab):
 			option = 'Downloads'
-			if g.combinerConfig.getint('Reminder dialogs', option) == 0: # If 'Don't show this again' is unchecked, show the dialog!
-				if tab.includeDownloads.checkState() == 2:
+			if g.combinerConfig.get('Reminder dialogs', option) == 'Unchecked': # If 'Don't show this again' is unchecked, show the dialog!
+				if tab.includeDownloads.checkState() == 'Checked':
 					dbInsPost34 = checkDBPost34()
 
 					if dbInsPost34 == False:
@@ -122,7 +121,7 @@ class createSettingsDialog(QtW.QDialog):
 
 						downloadsDialog = createWarning_InfoDialog('Downloads warning', message, 'OK', 'Info', option)
 						downloadsDialog.height += 5
-						downloadsDialog.exec_()
+						downloadsDialog.exec()
 
 
 	class backupTab(QtW.QWidget):
@@ -167,7 +166,7 @@ class createSettingsDialog(QtW.QDialog):
 
 
 			purgeBtn = QtW.QPushButton('Purge Completed DBs')
-			purgeBtn.clicked.connect(purgeWarningDialog.exec_)
+			purgeBtn.clicked.connect(purgeWarningDialog.exec)
 			if len(tab.dbFolders) <= 1: # Only enable button if there's more than one folder to purge.
 				purgeBtn.setEnabled(False)
 				purgeBtn.setStyleSheet('background-color: rgba(240, 240, 240, 80)')
@@ -181,6 +180,7 @@ class createSettingsDialog(QtW.QDialog):
 			mainBox.addWidget(overwritePrimaryDB)
 			mainBox.addWidget(openCompletedFolder)
 			mainBox.addStretch(1)
+			mainBox.setSpacing(0)
 			mainBox.addLayout(purgeBox)
 
 		def purgeOldDBs(tab):
@@ -214,7 +214,7 @@ class createSettingsDialog(QtW.QDialog):
 			# checkmarksBox.addWidget(numberDBs)
 			checkmarksBox.addWidget(stopCombining)
 			checkmarksBox.addWidget(firefoxClose)
-			checkmarksBox.addStretch(1)
+			checkmarksBox.setSpacing(0)
 
 			mainFrame = QtW.QFrame(tab)
 			mainFrame.move(6, 0)
@@ -259,6 +259,7 @@ class createSettingsDialog(QtW.QDialog):
 			mainBox = QtW.QVBoxLayout(tab)
 			mainBox.addWidget(pyInstallerCrashFiles)
 			mainBox.addStretch(1)
+			mainBox.setSpacing(0)
 
 
 	class debugTab(QtW.QWidget):
@@ -278,10 +279,10 @@ class createSettingsDialog(QtW.QDialog):
 			mainBox.addStretch(1)
 
 		def setLoggingLevel(tab):
-			debug = g.combinerConfig.getint('Debugging', 'Enabled')
+			debug = g.combinerConfig.get('Debugging', 'Enabled')
 
-			if debug == 0: level = 40 # ERROR
-			elif debug == 2: level = 10 # DEBUG
+			if debug == 'Unchecked': level = 40 # ERROR
+			elif debug == 'Checked': level = 10 # DEBUG
 
 			g.combinerConfig.set('Debugging', 'Debug level', str(level))
 			combinerLogger = logging.getLogger('Combiner')

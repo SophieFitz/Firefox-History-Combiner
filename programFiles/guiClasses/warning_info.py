@@ -1,6 +1,5 @@
-from PyQt5.QtCore import Qt, QSize, QTimer
-import PyQt5.QtWidgets as QtW
-from PyQt5.QtGui import QFont
+from PyQt6.QtCore import Qt, QSize, QTimer
+from PyQt6.QtGui import QFont
 
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +10,7 @@ from programFiles.guiClasses.misc import confirmChanges
 
 import programFiles.globalVars as g
 import webbrowser, re, logging
+import PyQt6.QtWidgets as QtW
 
 
 class createWarning_InfoDialog(QtW.QDialog):
@@ -18,26 +18,26 @@ class createWarning_InfoDialog(QtW.QDialog):
 		super().__init__()
 
 		dialog.setWindowTitle(title)
-		dialog.setWindowFlags(Qt.WindowCloseButtonHint)
+		dialog.setWindowFlags(Qt.WindowType.WindowCloseButtonHint)
 
 		if show: dialog.show = True
 		dialog.heightComp = 70 # This is height compensation for the minimum size of the message label. It doesn't display how I want it to without this.
 
 		iconLabel = QtW.QLabel(dialog)
 		if imgType == 'Info':
-			dialog.icon = QtW.QApplication.style().standardIcon(QtW.QStyle.SP_MessageBoxInformation)
+			dialog.icon = QtW.QApplication.style().standardIcon(QtW.QStyle.StandardPixmap.SP_MessageBoxInformation)
 			iconLabel.move(10, 10)
 			messageLabelOffset = 10
 			dialog.heightComp = 45
 
 		elif imgType == 'Warning':
-			dialog.icon = QtW.QApplication.style().standardIcon(QtW.QStyle.SP_MessageBoxWarning)
+			dialog.icon = QtW.QApplication.style().standardIcon(QtW.QStyle.StandardPixmap.SP_MessageBoxWarning)
 			iconLabel.move(10, 10)
 			messageLabelOffset = 12
 			dialog.heightComp = 60
 
 		elif imgType == 'Error':
-			dialog.icon = QtW.QApplication.style().standardIcon(QtW.QStyle.SP_MessageBoxCritical)
+			dialog.icon = QtW.QApplication.style().standardIcon(QtW.QStyle.StandardPixmap.SP_MessageBoxCritical)
 			iconLabel.move(13, 15)
 			messageLabelOffset = 10
 			dialog.heightComp = 60
@@ -112,14 +112,14 @@ class createWarning_InfoDialog(QtW.QDialog):
 		dialog.height = minHeight + heightFactor * numLines
 
 
-	def exec_(dialog, *resize):
+	def exec(dialog, *resize):
 		dialog.messageLabel.setMinimumSize(dialog.width - dialog.textOffset, dialog.height - dialog.heightComp)
 
 		if not resize: dialog.setFixedSize(dialog.width, dialog.height)
 		elif resize:
 			dialog.resize(dialog.width, dialog.height)
 
-		super().exec_()
+		super().exec()
 
 
 class createFaviconsMissingDialog(createWarning_InfoDialog):
@@ -222,7 +222,7 @@ class createFaviconsMissingDialog(createWarning_InfoDialog):
 			# Make items unclickable
 			iconsList.setStyleSheet('QListWidget::item:disabled {background: transparent; color: black}')
 			for i in range(iconsList.count()):
-				iconsList.item(i).setFlags(iconsList.item(i).flags() & ~Qt.ItemIsEnabled)
+				iconsList.item(i).setFlags(iconsList.item(i).flags() & ~Qt.ItemFlag.ItemIsEnabled)
 
 
 class createErrorDialog(createWarning_InfoDialog):
@@ -231,12 +231,12 @@ class createErrorDialog(createWarning_InfoDialog):
 
 		messageTitle = ['', 'The following error occurred.', 'Please send me the <b>combiner.log</b> file so I can figure out the problem.']
 		super().__init__('Combining exception', messageTitle, 'OK', 'Error')
-		dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowMaximizeButtonHint)
+		dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
 		
-		dialog.textBox = QTextEdit(f'')
-		dialog.textBox.setTextInteractionFlags(Qt.TextSelectableByMouse)
-		dialog.textBox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-		dialog.textBox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+		dialog.textBox = QtW.QTextEdit(f'')
+		dialog.textBox.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+		dialog.textBox.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+		dialog.textBox.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
 		
 		leftMarginBox = QtW.QHBoxLayout()
 		leftMarginBox.addSpacing(4)
@@ -288,7 +288,7 @@ class createErrorDialog(createWarning_InfoDialog):
 
 
 		dialog.finished.connect(dialog.closed)
-		dialog.exec_('Resizable')
+		dialog.exec('Resizable')
 
 	def closed(dialog):
 		# Reset the option to its default (disabled). It's optional for a reason!
@@ -349,13 +349,13 @@ class createBackupDialog(createWarning_InfoDialog):
 		dialog.heightComp = 60
 		dialog.accepted.connect(lambda: dialog.acceptedSlot(main))
 
-	def exec_(dialog):
+	def exec(dialog):
 		# See: https://stackoverflow.com/questions/41819082/updating-pyqt-label
 		dialog.timer.timeout.connect(dialog.updateTime)
 		dialog.timer.start(1000)
 		dialog.textInput.setFocus()
 
-		super().exec_()
+		super().exec()
 
 	def updateTime(dialog):
 		dialog.now = datetime.now().strftime('%d-%m-%Y %H.%M.%S')
@@ -364,14 +364,14 @@ class createBackupDialog(createWarning_InfoDialog):
 
 	def displayTime(dialog):
 		if len(dialog.textInput.text()) > 0:
-			dialog.textInput.setAlignment(Qt.AlignHCenter)
+			dialog.textInput.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 			if dialog.timeLabel.isHidden() == True:
 				dialog.inputBox.takeAt(dialog.inputBox.count() -1)
 				dialog.inputBox.addSpacing(dialog.spaceConst + 23)
 				dialog.timeLabel.show()
 
 		elif len(dialog.textInput.text()) == 0:
-			dialog.textInput.setAlignment(Qt.AlignLeft)
+			dialog.textInput.setAlignment(Qt.AlignmentFlag.AlignLeft)
 			if dialog.timeLabel.isHidden() == False:
 				dialog.inputBox.takeAt(dialog.inputBox.count() -1)
 				dialog.inputBox.addSpacing(dialog.spaceConst + 140)
@@ -398,4 +398,4 @@ class createBackupDialog(createWarning_InfoDialog):
 		# Open the Completed DBs folder if the option is checked.
 		# TODO: Check if dialog already open
 		# https://stackoverflow.com/questions/281888/open-explorer-on-a-file#50965628
-		if g.combinerConfig.getint('Backup', 'Open folder') == 2: webbrowser.open(f'file:///{backupDir}')
+		if g.combinerConfig.get('Backup', 'Open folder') == 'Checked': webbrowser.open(f'file:///{backupDir}')

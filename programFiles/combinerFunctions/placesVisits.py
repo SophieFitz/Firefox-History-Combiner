@@ -271,7 +271,7 @@ def mozHistoryVisits(curMain):
 	newPlaceIDs_GUIDs = getAllEntries(cur = curMain, SQL = 'SELECT id, guid from dbExt.moz_places', dictSchema = [0, 1])
 	newVisits = getAllEntries(cur = curMain, SQL = 'SELECT * from dbExt.moz_historyvisits order by visit_type desc', dictSchema = [0, 'list'], blockSize = 1000)
 
-	includeDownloads = g.combinerConfig.getint('History Combiner', 'Include downloads')
+	includeDownloads = g.combinerConfig.get('History Combiner', 'Include downloads')
 	newVisitsEdited = {key: {} for key in newVisits.keys()}
 
 	for blockNum, blockData in newVisits.items():
@@ -304,7 +304,7 @@ def mozHistoryVisits(curMain):
 			
 			# If the entry is an exact duplicate of one already present, then it's skipped!
 			if fkGUID in oldPlaceGUIDs_IDs.keys() and historyVisit[3] in oldHistoryDates.keys(): continue
-			if includeDownloads == 0 and historyVisit[4] == 7: continue # Downloads are ignored if the option is checked.
+			if includeDownloads == 'Unchecked' and historyVisit[4] == 7: continue # Downloads are ignored if the option is checked.
 
 			fromVisitDiff = historyVisit[0] - historyVisit[1]  # Get the original visit difference
 			if historyVisit[1] > 0: historyVisit[1] = historyVisit[0] - fromVisitDiff

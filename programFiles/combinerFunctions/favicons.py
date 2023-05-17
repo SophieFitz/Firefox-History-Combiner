@@ -80,7 +80,7 @@ def mozFavicons(dbArgs):
 		if 'extIcons' not in dbList and dbExtPre55 == False: print('favicons.sqlite file is missing')
 		elif 'extIcons' in dbList and dbExtPre55 == False:
 			print('*moz_icons*, *moz_pages_w_icons* and *moz_icons_to_pages*')
-			newIcons = getAllEntries(cur = curMain, SQL = 'SELECT * from extIcons.moz_icons', dictSchema = [0, 'list'])
+			newIcons = getAllEntries(cur = curMain, SQL = 'SELECT * from extIcons.moz_icons', dictSchema = [0, 'list'], blockSize = 1000)
 
 			# moz_icons
 			loopDetails = {'tableName': 'mainIcons.moz_icons', 'dbExtName': 'extIcons', 'defaultValues': [],
@@ -95,7 +95,7 @@ def mozFavicons(dbArgs):
 			# In one of my DBs that I checked for these sorts of duplicates, I found one that pointed to the wrong icon. 
 			# Luckily, Python dictionaries automatically discard duplicate Keys. 
 			# And since I'm looping through in order of 'id' it will discard newer entries that are tarnished, so this should be fine.
-			newWPages = getAllEntries(cur = curMain, SQL = 'SELECT * from extIcons.moz_pages_w_icons order by id asc', dictSchema = [0, 'list'])
+			newWPages = getAllEntries(cur = curMain, SQL = 'SELECT * from extIcons.moz_pages_w_icons order by id asc', dictSchema = [0, 'list'], blockSize = 1000)
 
 			# moz_pages_w_icons
 			loopDetails = {'tableName': 'mainIcons.moz_pages_w_icons', 'dbExtName': 'extIcons', 'defaultValues': [],
@@ -115,6 +115,9 @@ def mozFavicons(dbArgs):
 			newToPages = getAllEntries(cur = curMain, SQL = 'SELECT * from extIcons.moz_icons_to_pages',
 				       				   dictSchema = [tuple(range(iconsPagesExtLen)), 'list'], blockSize = 1000)
 
+			# For the below loop, 'newIcons' and 'newWPages' are de-blocked, so that they are a stream of uninterupted entries.
+			newIcons = blocksToNormal(newIcons)
+			newWPages = blocksToNormal(newWPages)
 			for blockData in newToPages.values():
 				checkStopPressed()
 

@@ -10,7 +10,7 @@ import programFiles.globalVars as g
 def annotations(curMain, newBookmarkIDs):
 	# 'Att' is 'Attribute' in all forthcoming variable names.
 	print('*moz_anno_attributes*') # The different types of attributes
-	includeDownloads = g.combinerConfig.getint('History Combiner', 'Include downloads')
+	includeDownloads = g.combinerConfig.get('History Combiner', 'Include downloads')
 	
 	insertAttLastID = curMain.execute('SELECT max(id) from main.moz_anno_attributes').fetchone()[0]
 	if insertAttLastID is None: insertAttLastID = 0 # In case there are no entries present in "moz_anno_attributes", lastID is set to 0.
@@ -33,11 +33,11 @@ def annotations(curMain, newBookmarkIDs):
 
 	newAnnosGet = curMain.execute('SELECT * from dbExt.moz_annos').fetchall()
 
-	if includeDownloads == 0: # Downloads are ignored.
+	if includeDownloads == 'Unchecked': # Downloads are ignored.
 		newAnnos = {anno[0]: list(anno) for anno in newAnnosGet if anno[2] == extAttUriPropID}
 
 
-	elif includeDownloads == 2: # Downloads are included.
+	elif includeDownloads == 'Checked': # Downloads are included.
 		downloadUriProperties = ('downloads/destinationFileURI',)
 		downloadMetaProperties = ('downloads/metaData',)
 

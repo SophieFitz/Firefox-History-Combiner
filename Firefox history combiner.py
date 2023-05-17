@@ -1,5 +1,5 @@
 from configparser import ConfigParser
-import PyQt5.QtWidgets as QtW
+import PyQt6.QtWidgets as QtW
 from pathlib import Path
 
 from programFiles.otherFunctions import removeOrphanedSqliteFiles, removeTempFiles
@@ -20,7 +20,7 @@ class createMainWindow(QtW.QMainWindow):
 		self.setWindowTitle('Firefox History Combiner')
 
 		# So that the DB folder selection dialog doesn't totally hide the main window when it's opened. Aesthetics, but it's important to me.
-		screen = QtW.QDesktopWidget().screenGeometry()
+		screen = QtW.QWidget().screen().geometry()
 		win = self.geometry()
 		x = int((screen.width() /2) - (win.width() /2))
 		y = int((screen.height() /2) - (win.height() /2) -70)
@@ -94,7 +94,7 @@ welcomeDialog.finished.connect(mainWindow.show)
 dbFoldersLen = len(ast.literal_eval(g.combinerConfig.get('History Combiner', 'DB folders')))
 
 if dbFoldersLen == 0:
-	welcomeDialog.finished.connect(mainWidget.dbSelectionDialog.exec_)
+	welcomeDialog.finished.connect(mainWidget.dbSelectionDialog.exec)
 	welcomeDialog.width += 12
 
 	# On first run, disable the combine button until the user has selected appropriate folders!
@@ -116,13 +116,13 @@ elif dbFoldersLen > 0:
 
 
 # If the option is unchecked, display the welcome message
-if g.combinerConfig.getint('Reminder dialogs', 'Welcome') == 0:
-	welcomeDialog.exec_()
+if g.combinerConfig.get('Reminder dialogs', 'Welcome') == 'Unchecked':
+	welcomeDialog.exec()
 
 # Otherwise just display the main window
-elif g.combinerConfig.getint('Reminder dialogs', 'Welcome') == 2:
+elif g.combinerConfig.get('Reminder dialogs', 'Welcome') == 'Checked':
 	mainWindow.show()
 
 
 app.aboutToQuit.connect(cleanupProcessStuff)
-app.exec_()
+app.exec()
