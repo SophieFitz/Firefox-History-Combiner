@@ -1,8 +1,12 @@
 # Firefox-History-Combiner
 
-### Unfortunately, this project is in stasis for the time being. 
-***I have ongoing personal matters to deal with and do not have the time to dedicate to this project.*** <br />
-***I hope to be able to continue in the future. I will update if / when things change.*** <br />
+### UPDATE:
+I am in a slightly better position for continuing this project, 
+I am focussing on rewrites and UI completion.
+
+~~### Unfortunately, this project is in stasis for the time being.
+***I have ongoing personal matters to deal with and do not have the time to dedicate to this project.***~~ <br />
+~~***I hope to be able to continue in the future. I will update if / when things change.***~~ <br />
 <br />
 <br />
 A GUI tool to combine multiple Firefox history databases together! <br />
@@ -14,7 +18,7 @@ The same holds true for Firefox forks such as Waterfox, Palemoon etc. They use t
 **But a word of caution:** <br />
 I have **not** tested combining from/to Firefox forks thoroughly as of yet. Looking at the source code it seems <br />
 like such DBs should behave as if they're Firefox DBs. It is possible this is not the case. <br />
-If there are problems, make an [issue](https://github.com/JoshCode94/Firefox-History-Combiner/issues/new) and let me know.
+If there are problems, make an [issue](https://github.com/SophieFitz/Firefox-History-Combiner/issues/new) and let me know.
 
 ### *Please note that this program is incomplete right now.*
 The primary functionalities are all working but the workflow is a bit clunky. <br />
